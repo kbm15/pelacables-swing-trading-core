@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Backtester:
-    def __init__(self, tsdata: TimeSeriesData, indicator: Indicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.25, sell_fraction: float = 0.25):
+    def __init__(self, tsdata: TimeSeriesData, indicator: Indicator, initial_capital: float = 10000.0, purchase_fraction: float = 1.0, sell_fraction: float = 1.0):
         self.tsdata = tsdata
         self.indicator = indicator
         self.capital = initial_capital
@@ -20,9 +20,9 @@ class Backtester:
     def run_backtest(self):
         
         self.data['Position'] = self.indicator.calculate(self.tsdata.data)
-        self.data['Portfolio Value'].iloc[0] = 0.0
-        self.data['Holdings'].iloc[0] = self.holdings
-        self.data['Cash'].iloc[0] = self.capital
+        self.data.loc[self.data.index[0],'Portfolio Value'] = 0.0
+        self.data.loc[self.data.index[0],'Holdings'] = self.holdings
+        self.data.loc[self.data.index[0],'Cash'] = self.capital
 
 
         # Backtest logic here
