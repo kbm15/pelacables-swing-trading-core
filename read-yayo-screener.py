@@ -1,7 +1,7 @@
 import os
 import sys
 import pandas as pd
-from dotenv import load_dotenv
+from decouple import config
 import datetime
 
 # Function to save to log
@@ -87,11 +87,8 @@ def main():
         force_update = True
         print("Force update is enabled.")
 
-    # Load environment variables from .env file
-    load_dotenv()
-
     # Get the URL variable
-    url = os.getenv('PORTFOLIO_URL')
+    url = config('PORTFOLIO_URL')
     
     # Check if yayo_screener folder exists
     if not yayo_screener_folder_exists():
@@ -128,6 +125,8 @@ def main():
     # Display current_tickers_df
     print("current_tickers_df:")
     print(current_tickers_df)
+    print("Copy friendly list")
+    print(current_tickers_df['Ticker'].tolist())
 
 # Entry point of the program
 if __name__ == "__main__":

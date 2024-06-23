@@ -12,6 +12,8 @@ numpy = "1.26.4"
 yfinance = "^0.2.40"
 pandas-ta = "^0.3.14b0"
 datetime = "^5.5"
+python-decouple = "^3.8"
+
 
 
 [build-system]
