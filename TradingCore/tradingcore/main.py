@@ -45,15 +45,38 @@ def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backt
     fig.show()
 
 tickers = ['AAPL','GOOGL','MSFT','NVDA','AMZN','META','TSLA']
-strategies = ['Ichimoku','Kumo','KumoChikou','TenkanKijun','TenkanKijunPSAR']
+strategies = ['Ichimoku','Kumo','KumoChikou','Kijun','TenkanKijun','KumoTenkanKijun','TenkanKijunPSAR','KumoTenkanKijunPSAR']
 results = pd.DataFrame(columns=['Ticker', 'Strategy', 'Valor final', 'Retorno total', 'Hold perfecto'])
 for ticker in tickers:
-    ts = TimeSeriesData(symbol=ticker, interval='1d')
+    ts = TimeSeriesData(symbol=ticker, interval='1h')    
     for strategy in strategies:
         indicator = IchimokuIndicator(strategy)
         backtest = Backtester(ts,indicator)
         value, returned, hold = backtest.run_backtest()
-        # plot_strategy(indicator, ts, backtest)
+        
         current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':[strategy], 'Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
         results = pd.concat([results, current_result], ignore_index = True)
+    
+    returned = (ts.data['Close'].iloc[len(ts.data)-1] - ts.data['Close'].iloc[0] )/ ts.data['Close'].iloc[0] * 100    
+    value = backtest.capital * returned / 100
+    current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':'Hold', 'Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
+    results = pd.concat([results, current_result], ignore_index = True)
+    plot_strategy(indicator, ts, backtest)
+
 print(results)
+
+# Calculate the average Retorno total per Strategy
+average_ret_per_strategy = results.groupby('Strategy')['Retorno total'].mean().reset_index()
+average_ret_per_strategy.columns = ['Strategy', 'Average Retorno total']
+average_ret_per_strategy = average_ret_per_strategy.sort_values(by='Average Retorno total', ascending=False)
+
+# Calculate the max Retorno total Strategy per Ticker
+max_ret_per_ticker = results.loc[results.groupby('Ticker')['Retorno total'].idxmax()]
+max_ret_per_ticker = max_ret_per_ticker[['Ticker', 'Strategy', 'Retorno total']].reset_index(drop=True)
+max_ret_per_ticker.columns = ['Ticker', 'Max Strategy', 'Max Retorno total']
+max_ret_per_ticker = max_ret_per_ticker.sort_values(by='Max Retorno total', ascending=False)
+
+print("Average Retorno total per Strategy (sorted):")
+print(average_ret_per_strategy)
+print("\nMax Retorno total Strategy per Ticker (sorted):")
+print(max_ret_per_ticker)

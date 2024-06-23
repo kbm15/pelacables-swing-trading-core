@@ -6,7 +6,7 @@ from .psar import PSARIndicator
 
 
 class IchimokuIndicator(Indicator):
-    POSSIBLE_STRATEGIES=[None,'Ichimoku','Kumo','KumoChikou','TenkanKijun','TenkanKijunPSAR']
+    POSSIBLE_STRATEGIES=[None,'Ichimoku','Kumo','KumoChikou','Kijun','TenkanKijun','KumoTenkanKijun','TenkanKijunPSAR','KumoTenkanKijunPSAR']
     def __init__(self, strategy: str = None ):
         self.strategy = strategy
         self.components = pd.DataFrame(columns=['Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB', 'Ichimoku_Chikou', 'Ichimoku_Signal'])
@@ -52,8 +52,8 @@ class IchimokuIndicator(Indicator):
             
             # Sell signal: Price < Senkou Span A and price > Senkou Span B
             self.components['Ichimoku_Signal'] = np.where(
-                (data['Close'] < self.components['Ichimoku_SenkouA']) & 
-                (data['Close'] > self.components['Ichimoku_SenkouB']), 
+                (data['Close'] < self.components['Ichimoku_SenkouA']) | 
+                (data['Close'] < self.components['Ichimoku_SenkouB']), 
                 -1, self.components['Ichimoku_Signal'])
         
         elif self.strategy == 'KumoChikou':
@@ -66,21 +66,48 @@ class IchimokuIndicator(Indicator):
             
             # Sell signal: Price < Senkou Span A, price > Senkou Span B, and Chikou Span < price 26 periods ago
             self.components['Ichimoku_Signal'] = np.where(
-                (data['Close'] < self.components['Ichimoku_SenkouA']) & 
-                (data['Close'] > self.components['Ichimoku_SenkouB']) & 
+                ((data['Close'] < self.components['Ichimoku_SenkouA']) | 
+                (data['Close'] < self.components['Ichimoku_SenkouB'])) & 
                 (self.components['Ichimoku_Chikou'].shift(26) < data['Close'].shift(26)), 
+                -1, self.components['Ichimoku_Signal'])
+        
+        elif self.strategy == 'Kijun':
+            # Buy signal: Price > Kijun
+            self.components['Ichimoku_Signal'] = np.where(
+                self.components['Ichimoku_Kijun'] < data['Close'], 
+                1, self.components['Ichimoku_Signal'])
+            
+            # Sell signal: Price < Kijun-sen
+            self.components['Ichimoku_Signal'] = np.where(
+                self.components['Ichimoku_Kijun'] > data['Close'], 
                 -1, self.components['Ichimoku_Signal'])
         
         elif self.strategy == 'TenkanKijun':
             # Buy signal: Tenkan-sen > Kijun-sen
             self.components['Ichimoku_Signal'] = np.where(
-                self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun'], 
+                (self.components['Ichimoku_Kijun'] < data['Close']) &
+                (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']), 
                 1, self.components['Ichimoku_Signal'])
             
             # Sell signal: Tenkan-sen < Kijun-sen
             self.components['Ichimoku_Signal'] = np.where(
                 self.components['Ichimoku_Tenkan'] < self.components['Ichimoku_Kijun'], 
                 -1, self.components['Ichimoku_Signal'])
+
+        elif self.strategy == 'KumoTenkanKijun':
+            # Buy signal: Tenkan-sen > Kijun-sen
+            self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Kijun'] < data['Close']) &
+                (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']) &
+                ((data['Close'] > self.components['Ichimoku_SenkouA']) | 
+                (data['Close'] > self.components['Ichimoku_SenkouB'])), 
+                1, self.components['Ichimoku_Signal'])
+            
+            # Sell signal: Tenkan-sen < Kijun-sen
+            self.components['Ichimoku_Signal'] = np.where(
+                self.components['Ichimoku_Tenkan'] < self.components['Ichimoku_Kijun'], 
+                -1, self.components['Ichimoku_Signal'])    
+            
         
         elif self.strategy == 'TenkanKijunPSAR':
             # Calculate PSAR indicator
@@ -88,6 +115,7 @@ class IchimokuIndicator(Indicator):
             
             # Buy signal: Tenkan-sen > Kijun-sen and price > PSAR
             self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Kijun'] < data['Close']) &
                 (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']) & 
                 (data['Close'] > data['PSAR_Long']), 
                 1, self.components['Ichimoku_Signal'])
@@ -97,5 +125,25 @@ class IchimokuIndicator(Indicator):
                 (self.components['Ichimoku_Tenkan'] < self.components['Ichimoku_Kijun']) & 
                 (data['Close'] < data['PSAR_Short']), 
                 -1, self.components['Ichimoku_Signal'])
+            
+        elif self.strategy == 'KumoTenkanKijunPSAR':
+            # Calculate PSAR indicator
+            data['PSAR_Long'], data['PSAR_Short'] = PSARIndicator().calculate(data)
+            
+            # Buy signal: Tenkan-sen > Kijun-sen and price > PSAR
+            self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Kijun'] < data['Close']) &
+                (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']) & 
+                ((data['Close'] > self.components['Ichimoku_SenkouA']) | 
+                (data['Close'] > self.components['Ichimoku_SenkouB'])) &
+                (data['Close'] > data['PSAR_Long']), 
+                1, self.components['Ichimoku_Signal'])
+            
+            # Sell signal: Tenkan-sen < Kijun-sen and price < PSAR
+            self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Tenkan'] < self.components['Ichimoku_Kijun']) & 
+                (data['Close'] < data['PSAR_Short']), 
+                -1, self.components['Ichimoku_Signal'])
+
 
         return self.components['Ichimoku_Signal']
