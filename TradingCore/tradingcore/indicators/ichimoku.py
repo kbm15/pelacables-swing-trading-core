@@ -6,6 +6,7 @@ from .psar import PSARIndicator
 
 
 class IchimokuIndicator(Indicator):
+    POSSIBLE_STRATEGIES=[None,'Ichimoku','Kumo','KumoChikou','TenkanKijun','TenkanKijunPSAR']
     def __init__(self, strategy: str = None ):
         self.strategy = strategy
         self.components = pd.DataFrame(columns=['Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB', 'Ichimoku_Chikou', 'Ichimoku_Signal'])
@@ -16,7 +17,7 @@ class IchimokuIndicator(Indicator):
          
         # If no strategy is specified, return the Ichimoku components
         if self.strategy is None:            
-            return ichimokudf['ITS_9'], ichimokudf['IKS_26'], ichimokudf['ISA_9'], ichimokudf['ISB_26'], visible_period['ICS_26']
+            return ichimokudf['ITS_9'], ichimokudf['IKS_26'], ichimokudf['ISA_9'], ichimokudf['ISB_26'], ichimokudf['ICS_26']
         
         # Assign Ichimoku components to the DataFrame
         self.components['Ichimoku_Tenkan'] = ichimokudf['ITS_9']
@@ -60,14 +61,14 @@ class IchimokuIndicator(Indicator):
             self.components['Ichimoku_Signal'] = np.where(
                 (data['Close'] > self.components['Ichimoku_SenkouA']) & 
                 (data['Close'] > self.components['Ichimoku_SenkouB']) & 
-                (self.components['Ichimoku_Chikou'] > data['Close'].shift(26)), 
+                (self.components['Ichimoku_Chikou'].shift(26) > data['Close'].shift(26)), 
                 1, self.components['Ichimoku_Signal'])
             
             # Sell signal: Price < Senkou Span A, price > Senkou Span B, and Chikou Span < price 26 periods ago
             self.components['Ichimoku_Signal'] = np.where(
                 (data['Close'] < self.components['Ichimoku_SenkouA']) & 
                 (data['Close'] > self.components['Ichimoku_SenkouB']) & 
-                (self.components['Ichimoku_Chikou'] < data['Close'].shift(26)), 
+                (self.components['Ichimoku_Chikou'].shift(26) < data['Close'].shift(26)), 
                 -1, self.components['Ichimoku_Signal'])
         
         elif self.strategy == 'TenkanKijun':
