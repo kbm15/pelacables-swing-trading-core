@@ -1,16 +1,22 @@
 from tradingcore import TimeSeriesData, IchimokuIndicator, Backtester
+from tradingcore.utils.yahoo_finance import check_tickers_exist     
 import numpy as np
 import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backtester):
 
     # Asegurarse de que no hay NaN en las columnas que se van a plotear
     required_columns = ['Close']
-    required_columns += ['Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB',
-                                'Ichimoku_SenkouA', 'Ichimoku_Chikou', 'Position']
+    required_columns += ['Ichimoku_Tenkan','Ichimoku_Kijun','Ichimoku_SenkouA','Ichimoku_SenkouB',
+                                'Ichimoku_SenkouA','Ichimoku_Chikou','Position']
 
     # Eliminar filas con NaN en columnas requeridas
     data = indicator.components.copy()
@@ -41,16 +47,27 @@ def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backt
         fig.add_trace(go.Scatter(x=data[data['Position'] == 1].index, y=data['Close'][data['Position'] == 1], mode='markers', marker_symbol='triangle-up', marker_color='green', marker_size=10, name=f'Señal de Compra'), row=1, col=1)
         fig.add_trace(go.Scatter(x=data[data['Position'] == -1].index, y=data['Close'][data['Position'] == -1], mode='markers', marker_symbol='triangle-down', marker_color='red', marker_size=10, name=f'Señal de Venta '), row=1, col=1)
 
+mag7_tickers = ['AAPL','GOOGL','MSFT','NVDA','AMZN','META','TSLA']
+nasdaq_100_tickers = ['AAPL','MSFT','AMZN','GOOGL','GOOG','META','TSLA','NVDA','PYPL','ADBE','CMCSA','NFLX','INTC','PEP',
+                      'CSCO','AVGO','COST','TMUS','TXN','QCOM','CHTR','SBUX','AMGN','MDLZ','ISRG','BKNG','GILD',
+                      'ADP','ADI','LRCX','MU','INTU','AMAT','ILMN','ADSK','VRTX','REGN','JD','BIIB','KDP','MNST','CSX',
+                      'MELI','MAR','CTSH','LULU','DOCU','TEAM','AEP','XEL','WDAY','SNPS','ASML','MRVL','KLAC','ORLY','IDXX',
+                      'CRWD','EBAY','DXCM','ROST','ALGN','CPRT','ODFL','CDNS','ZS','NXPI','ANSS','PAYX','VRSK','PCAR','BMRN',
+                      'SWKS','WDAY','FAST','MTCH','EXC','WBA','CHKP','CTAS','VRSN','INCY','OKTA','DOCU','FTNT','CDW','SIRI',
+                      'LBTYA','LBTYK','QRVO','TTWO','LILA','LILAK'
+                      ] 
 
-    fig.show()
-
-tickers = ['AAPL','GOOGL','MSFT','NVDA','AMZN','META','TSLA']
-strategies = ['Ichimoku','Kumo','KumoChikou','Kijun','TenkanKijun','KumoTenkanKijun','TenkanKijunPSAR','KumoTenkanKijunPSAR']
-results = pd.DataFrame(columns=['Ticker', 'Strategy', 'Valor final', 'Retorno total', 'Hold perfecto'])
+# yayo_tickers = ['AMX','APEI','ATEN','BGC','ERO','EYE','F','FBP','HBI','HNST','HRTG','IMMR','KTOS','MITK','ORN','OSBC','PAGS','PK','SILV','VIRC','XHR']
+tickers, trash = check_tickers_exist(nasdaq_100_tickers)
+strategies = ['Ichimoku','Kumo','KumoChikou','Kijun','KijunPSAR','TenkanKijun','KumoTenkanKijun',
+                         'TenkanKijunPSAR' ,'KumoTenkanKijunPSAR','KumoKiyunPSAR','KumoChikouPSAR','KumoKiyunChikouPSAR']
+results = pd.DataFrame(columns=['Ticker','Strategy','Valor final','Retorno total','Hold perfecto'])
+logging.info(f"Loading tickers {tickers}, discarded {trash}")
 for ticker in tickers:
-    ts = TimeSeriesData(symbol=ticker, interval='1h')    
+    ts = TimeSeriesData(symbol=ticker, interval='1h')   
+    indicator = IchimokuIndicator() 
     for strategy in strategies:
-        indicator = IchimokuIndicator(strategy)
+        indicator.setStrategy(strategy)
         backtest = Backtester(ts,indicator)
         value, returned, hold = backtest.run_backtest()
         
@@ -59,24 +76,26 @@ for ticker in tickers:
     
     returned = (ts.data['Close'].iloc[len(ts.data)-1] - ts.data['Close'].iloc[0] )/ ts.data['Close'].iloc[0] * 100    
     value = backtest.capital * returned / 100
-    current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':'Hold', 'Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
+    current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':'Hold','Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
     results = pd.concat([results, current_result], ignore_index = True)
-    plot_strategy(indicator, ts, backtest)
+    # plot_strategy(indicator, ts, backtest)
 
-print(results)
+results.to_csv('result.csv', index=False)
 
 # Calculate the average Retorno total per Strategy
 average_ret_per_strategy = results.groupby('Strategy')['Retorno total'].mean().reset_index()
-average_ret_per_strategy.columns = ['Strategy', 'Average Retorno total']
+average_ret_per_strategy.columns = ['Strategy','Average Retorno total']
 average_ret_per_strategy = average_ret_per_strategy.sort_values(by='Average Retorno total', ascending=False)
 
 # Calculate the max Retorno total Strategy per Ticker
 max_ret_per_ticker = results.loc[results.groupby('Ticker')['Retorno total'].idxmax()]
-max_ret_per_ticker = max_ret_per_ticker[['Ticker', 'Strategy', 'Retorno total']].reset_index(drop=True)
-max_ret_per_ticker.columns = ['Ticker', 'Max Strategy', 'Max Retorno total']
+max_ret_per_ticker = max_ret_per_ticker[['Ticker','Strategy','Retorno total']].reset_index(drop=True)
+max_ret_per_ticker.columns = ['Ticker','Max Strategy','Max Retorno total']
 max_ret_per_ticker = max_ret_per_ticker.sort_values(by='Max Retorno total', ascending=False)
 
 print("Average Retorno total per Strategy (sorted):")
 print(average_ret_per_strategy)
 print("\nMax Retorno total Strategy per Ticker (sorted):")
 print(max_ret_per_ticker)
+
+logging.info(f"Finished batch")
