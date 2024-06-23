@@ -77,7 +77,7 @@ class TimeSeriesData:
         # Calculate the period based on interval
         if self.interval == '1m':
             return '5d'
-        elif self.interval in ['60m', '1h']:
+        elif self.interval in ['60m', '1h', '1d']:
             return '1y'
         else:
             return '1mo'
