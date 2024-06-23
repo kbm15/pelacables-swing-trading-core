@@ -1,6 +1,6 @@
-from TradingCore.data.timeseries import TimeSeriesData
-from TradingCore.indicators.moving_average import MovingAverageIndicator
-from TradingCore.backtesting.backtester import Backtester
+from tradingcore.data.timeseries import TimeSeriesData
+from tradingcore.indicators.moving_average import MovingAverageIndicator
+from tradingcore.backtesting.backtester import Backtester
 
 # Initialize timeseries data
 ts_data = TimeSeriesData('AAPL')

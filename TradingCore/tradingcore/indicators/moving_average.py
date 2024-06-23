@@ -1,5 +1,5 @@
 import pandas as pd
-from .base.py import Indicator
+from .base import Indicator
 
 class MovingAverageIndicator(Indicator):
     def __init__(self, window: int):

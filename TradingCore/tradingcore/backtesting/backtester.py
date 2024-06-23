@@ -1,5 +1,5 @@
-from TradingCore.data.timeseries import TimeSeriesData
-from TradingCore.indicators.base import Indicator
+from tradingcore.data.timeseries import TimeSeriesData
+from tradingcore.indicators.base import Indicator
 
 class Backtester:
     def __init__(self, data: TimeSeriesData, indicator: Indicator):
