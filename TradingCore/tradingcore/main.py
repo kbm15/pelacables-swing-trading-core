@@ -66,7 +66,7 @@ def backtest_ticker(ticker, ts, indicators_strategies):
             # plot_strategy(indicator, ts, backtest)
     
         returned = (ts.data['Close'].iloc[-1] - ts.data['Close'].iloc[0]) / ts.data['Close'].iloc[0] * 100    
-        value = backtest.initial_capital * returned / 100
+        value = backtest.initial_capital * (returned/100 +1)
         results.loc[len(results)]={
                 'Ticker': ticker, 
                 'Indicator': indicator_name, 
@@ -101,11 +101,32 @@ nasdaq_100_tickers = ['AAPL','MSFT','AMZN','GOOGL','GOOG','META','TSLA','NVDA','
                       'MELI','MAR','CTSH','LULU','DOCU','TEAM','AEP','XEL','WDAY','SNPS','ASML','MRVL','KLAC','ORLY','IDXX',
                       'CRWD','EBAY','DXCM','ROST','ALGN','CPRT','ODFL','CDNS','ZS','NXPI','ANSS','PAYX','VRSK','PCAR','BMRN',
                       'SWKS','WDAY','FAST','MTCH','EXC','WBA','CHKP','CTAS','VRSN','INCY','OKTA','DOCU','FTNT','CDW','SIRI',
-                      'LBTYA','LBTYK','QRVO','TTWO','LILA','LILAK'
+                      'LBTYA','LBTYK','QRVO','TTWO','LILA'
                       ] 
 
-# yayo_tickers = ['AMX','APEI','ATEN','BGC','ERO','EYE','F','FBP','HBI','HNST','HRTG','IMMR','KTOS','MITK','ORN','OSBC','PAGS','PK','SILV','VIRC','XHR']
-tickers, trash = check_tickers_exist(['SPY','QQQ'])
+yayo_tickers = ['AMX','APEI','ATEN','BGC','ERO','EYE','F','FBP','HBI','HNST','HRTG','IMMR','KTOS','MITK','ORN','OSBC','PAGS','PK','SILV','VIRC','XHR']
+
+hist_yayo_tickers = [
+    'ALTM', 'ARCO', 'CMPO', 'FSM', 'IAG', 'ILPT', 'INTR', 'IONQ', 'KGC', 'PAYO', 'HMST', 'PAGS', 'TTI', 'WT', 'AMTX', 'ARIS', 
+    'COTY', 'DH', 'OSW', 'PAYS', 'DESP', 'HNST', 'IMMR', 'TSQ', 'NOTV', 'OUT', 'PTLO', 'TFPM', 'AMAL', 'CMPO', 'CRGY', 'FDUS', 
+    'GDRX', 'INTR', 'PBPB', 'USAP', 'BDTX', 'HEAR', 'HLMN', 'LAC', 'ONB', 'TZOO', 'CTLP', 'DB', 'HLLY', 'INTR', 'MWA', 'NSSC', 
+    'SILV', 'WT', 'EGO', 'GT', 'LPRO', 'ROOT', 'VRE', 'ACEL', 'BHC', 'EQX', 'GDRX', 'MNTX', 'NWL', 'OSW', 'AGNC', 'BWB', 'INTR', 
+    'PAGS', 'RRGB', 'UTI', 'ABR', 'ARCO', 'EHTH', 'GTES', 'NU', 'PK', 'ARAY', 'HAFC', 'HEAR', 'MASS', 'MITK', 'ULBI', 'AGI', 
+    'CHWY', 'PBPB', 'RLAY', 'SEAT', 'AEO', 'AM', 'ARIS', 'BHC', 'HRTG', 'LSEA', 'ORN', 'TRIP', 'AHH', 'ARAY', 'ECVT', 'HLLY', 
+    'PSEC', 'SKT', 'TCMD', 'ABR', 'BHC', 'LYTS', 'NXE', 'OPRT', 'PSTL', 'PTEN', 'CMRE', 'FTI', 'JBI', 'MITK', 'NINE', 'PBPB', 
+    'RWT', 'UTI', 'ARIS', 'FREY', 'KGC', 'LFVN', 'ONB', 'OSW', 'QUAD', 'ASRT', 'KLXE', 'NABL', 'NMFC', 'SCYX', 'SLM', 'ARCO', 
+    'CLS', 'ESRT', 'EXAI', 'GLAD', 'HLLY', 'MEC', 'PAGS', 'RRGB', 'ULBI', 'AAOI', 'CNHI', 'WT', 'BHC', 'DAKT', 'MRTN', 'QUAD', 
+    'SHO', 'ALDX', 'MAG', 'SIRI', 'TUSK', 'OSW', 'RYAM', 'GSL', 'CINT', 'III', 'KGC', 'STNE', 'AAOI', 'RMTI', 'ARIS', 'DB', 
+    'ECVT', 'WTTR', 'IBCP', 'SURG', 'PLYA', 'FSM', 'DLO', 'ETRN', 'CSWC', 'DAKT', 'PLTK', 'ARCO', 'KLXE', 'WT', 'PBPB', 'HNRG', 
+    'NOA', 'OPAL', 'RITM', 'XP', 'BWEN', 'DB', 'IBCP', 'PAGS', 'ASRT', 'AGI', 'AMPL', 'STNE', 'COTY', 'DAKT', 'NINE', 'OSG', 
+    'AMCR', 'AM', 'BWB', 'EEX', 'HTGC', 'PAAS', 'PANL', 'NAPA', 'UTI', 'CLS', 'RLAY', 'FREY', 'KLXE', 'PSTL', 'STGW', 'TUSK', 
+    'LYTS', 'AKR', 'MEC', 'RITM', 'AMPL', 'ATEN', 'PANL', 'VRT', 'JAKK', 'BTG', 'FCF', 'FNB', 'NOA', 'ARCO', 'AE', 'BWEN', 'CLVT', 
+    'EXPI', 'FBRT', 'ARHS', 'CSWC', 'GDYN', 'SPNS', 'AM', 'VTNR', 'BWB', 'CNX', 'FCF', 'KRG', 'OI', 'PBPB', 'BZH', 'SRAD', 'SLM', 
+    'SPNS', 'AMPL', 'BNL', 'FMNB', 'GPK', 'HBM', 'PRMW', 'ASB', 'ATEN', 'BIVI', 'BRBR', 'CHX', 'FREY', 'GDS', 'GNE', 'IRWD', 'MRC'
+]
+
+etf = ['QQQ','SPY']
+tickers, trash = check_tickers_exist(mag7_tickers)
 indicators_strategies = {
   "AwesomeOscillator": ['SMA_Crossover'],
    "BollingerIndicator": ['Bollinger'],  
@@ -132,9 +153,10 @@ average_ret_per_strategy = average_ret_per_strategy.sort_values(by='Average Reto
 
 # Calculate the max Retorno total Strategy per Ticker
 max_ret_per_ticker = results.loc[results.groupby('Ticker')['Retorno total'].idxmax()]
-max_ret_per_ticker = max_ret_per_ticker[['Ticker','Strategy','Retorno total']].reset_index(drop=True)
-max_ret_per_ticker.columns = ['Ticker','Max Strategy','Max Retorno total']
-max_ret_per_ticker = max_ret_per_ticker.sort_values(by='Max Retorno total', ascending=False)
+max_ret_per_ticker = max_ret_per_ticker[['Ticker','Strategy','Valor final','Retorno total']].reset_index(drop=True)
+max_ret_per_ticker.columns = ['Ticker','Max Strategy','Max Valor final','Max Retorno total']
+max_ret_per_ticker = max_ret_per_ticker.sort_values(by='Max Valor final', ascending=False)
+
 
 print("Average Retorno total per Strategy (sorted):")
 print(average_ret_per_strategy)
