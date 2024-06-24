@@ -9,7 +9,7 @@ class TestTimeSeriesData(unittest.TestCase):
     @patch('tradingcore.utils.yahoo_finance.fetch_yahoo_finance_data')
     def setUp(self, mock_fetch):                
         # Initialize the TimeSeriesData object with mock data
-        self.ts_data = TimeSeriesData(symbol='AAPL', interval='1d')
+        self.ts_data = TimeSeriesData(ticker='AAPL', interval='1d')
 
     def test_load_data(self):
         # Test that data is loaded correctly

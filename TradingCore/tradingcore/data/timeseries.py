@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class TimeSeriesData:
     ALLOWED_INTERVALS = {'1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d'}
 
-    def __init__(self, symbol: str, interval: str, cache_dir: str = 'cache'):
-        self.symbol = symbol
+    def __init__(self, ticker: str, interval: str, cache_dir: str = 'cache'):
+        self.ticker = ticker
         if interval not in self.ALLOWED_INTERVALS:
             raise ValueError(f"Interval '{interval}' is not allowed. Allowed values are: {', '.join(self.ALLOWED_INTERVALS)}")
         self.interval = interval
@@ -22,19 +22,19 @@ class TimeSeriesData:
 
     def load_data(self):
         # Load data from cache if available
-        cache_path = os.path.join(self.cache_dir, f"{self.symbol}_{self.interval}.pkl")
+        cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
         if os.path.exists(cache_path):
             logging.info(f"Loading data from cache: {cache_path}")
             with open(cache_path, 'rb') as f:
                 return pickle.load(f)
         else:
-            logging.info(f"No cache found. Fetching new data for {self.symbol} with interval {self.interval}")
+            logging.info(f"No cache found. Fetching new data for {self.ticker} with interval {self.interval}")
             return self.fetch_new_data()
 
     def fetch_new_data(self):
         # Fetch new data from Yahoo Finance
-        logging.info(f"Fetching new data for {self.symbol} with interval {self.interval} and period {self.period}")
-        data = fetch_yahoo_finance_data(self.symbol, self.interval, self.period)
+        logging.info(f"Fetching new data for {self.ticker} with interval {self.interval} and period {self.period}")
+        data = fetch_yahoo_finance_data(self.ticker, self.interval, self.period)
         self.cache_data(data)
         return data
 
@@ -42,7 +42,7 @@ class TimeSeriesData:
         # Cache the fetched data
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
-        cache_path = os.path.join(self.cache_dir, f"{self.symbol}_{self.interval}.pkl")
+        cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
         logging.info(f"Caching data to {cache_path}")
         with open(cache_path, 'wb') as f:
             pickle.dump(data, f)
@@ -68,7 +68,7 @@ class TimeSeriesData:
             self.data = self.fetch_new_data()
         else:
             logging.info("Last data point is after cutoff date. Fetching incremental data.")
-            new_data = fetch_yahoo_finance_data(symbol=self.symbol, start=last_date, end=datetime.now(timezone.utc).strftime('%Y-%m-%d'), interval=self.interval)
+            new_data = fetch_yahoo_finance_data(ticker=self.ticker, start=last_date, end=datetime.now(timezone.utc).strftime('%Y-%m-%d'), interval=self.interval)
             self.data = pd.concat([self.data, new_data])
             
         self.cache_data(self.data)
