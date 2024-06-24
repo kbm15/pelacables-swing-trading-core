@@ -5,6 +5,7 @@ from .base import Indicator
 import hashlib
 
 class PSARIndicator(Indicator):
+    POSSIBLE_STRATEGIES=[None,'PSAR']
     def __init__(self, strategy: str = None ):
         self.strategy = strategy
         self.components = pd.DataFrame(columns=['PSAR_Long','PSAR_Short','PSAR_Signal'])
@@ -17,6 +18,11 @@ class PSARIndicator(Indicator):
         if key not in self.cache:
             self.cache[key] = op(series1, series2)
         return self.cache[key]
+    
+    def setStrategy(self, strategy: str = None):
+        if strategy not in self.POSSIBLE_STRATEGIES:
+            raise ValueError(f"Strategy {strategy} is not allowed. Possible strategies: {self.POSSIBLE_STRATEGIES}")
+        self.strategy = strategy
 
     def calculate(self, data: pd.DataFrame):
         data_hash = self._hash_data(data)

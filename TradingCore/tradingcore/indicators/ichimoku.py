@@ -8,9 +8,15 @@ import hashlib
 
 class IchimokuIndicator(Indicator):
     POSSIBLE_STRATEGIES=[None,'Ichimoku','Kumo','KumoChikou','Kijun','KijunPSAR','TenkanKijun','KumoTenkanKijun',
-                         'TenkanKijunPSAR' ,'KumoTenkanKijunPSAR','KumoKiyunPSAR','KumoChikouPSAR','KumoKiyunChikouPSAR']
-    def __init__(self, strategy: str = None ):
+                        'TenkanKijunPSAR' ,'KumoTenkanKijunPSAR','KumoKiyunPSAR','KumoChikouPSAR','KumoKiyunChikouPSAR']
+    # POSSIBLE_STRATEGIES+=['Ichimoku2', 'Kumo2', 'KumoChikou2', 'Kijun2', 'KijunPSAR2', 'TenkanKijun2', 'KumoTenkanKijun2', 'TenkanKijunPSAR2', 'KumoTenkanKijunPSAR2', 'KumoKiyunPSAR2', 'KumoChikouPSAR2', 'KumoKiyunChikouPSAR2']
+    # POSSIBLE_STRATEGIES+=['KumoTenkanKijun2','KumoTenkanKijun3','KumoTenkanKijun4','KumoTenkanKijun5','KumoTenkanKijun6']
+    def __init__(self, strategy: str = None, tenkan=9, kijun=26, senkou=52, include_chikou=True):
         self.strategy = strategy
+        self.tenkan = tenkan
+        self.kijun = kijun
+        self.senkou = senkou
+        self.chikou = include_chikou
         self.components = pd.DataFrame(columns=['Ichimoku_Tenkan', 'Ichimoku_Kijun', 'Ichimoku_SenkouA', 'Ichimoku_SenkouB', 'Ichimoku_Chikou', 'Ichimoku_Signal'])
         self.data_hash = None
 
@@ -23,7 +29,8 @@ class IchimokuIndicator(Indicator):
         return self.cache[key]
     
     def setStrategy(self, strategy: str = None):
-        #print(f"Changing strategy to {strategy}, old strategy {self.strategy}")
+        if strategy not in self.POSSIBLE_STRATEGIES:
+            raise ValueError(f"Strategy {strategy} is not allowed. Possible strategies: {self.POSSIBLE_STRATEGIES}")
         self.strategy = strategy
 
     def calculate(self, data: pd.DataFrame):
@@ -34,7 +41,8 @@ class IchimokuIndicator(Indicator):
             # Update the hash
             self.data_hash = data_hash
             # Calculate Ichimoku components
-            ichimokudf, spandf = ta.ichimoku(data['High'], data['Low'], data['Close'])
+            ichimokudf, spandf = ta.ichimoku(data['High'], data['Low'], data['Close'],
+                                             tenkan=self.tenkan, kijun=self.kijun, senkou=self.senkou, include_chikou=self.chikou)
 
             # Assign Ichimoku components to the DataFrame
             self.components['Ichimoku_Tenkan'] = ichimokudf['ITS_9']
@@ -47,7 +55,7 @@ class IchimokuIndicator(Indicator):
          
         # If no strategy is specified, return the Ichimoku components
         if self.strategy is None:            
-            return ichimokudf['ITS_9'], ichimokudf['IKS_26'], ichimokudf['ISA_9'], ichimokudf['ISB_26'], ichimokudf['ICS_26']
+            return self.components['Ichimoku_Tenkan'], self.components['Ichimoku_Kijun'], self.components['Ichimoku_SenkouA'], self.components['Ichimoku_SenkouB'], self.components['Ichimoku_Chikou']
 
         # Apply different strategies based on the strategy parameter
         if self.strategy == 'Ichimoku':
@@ -243,6 +251,12 @@ class IchimokuIndicator(Indicator):
                 (self.components['Ichimoku_Chikou'].shift(26) < data['Close'].shift(26)) &
                 (data['Close'] < self.components['PSAR_Short']),  
                 -1, self.components['Ichimoku_Signal'])
-
-
+            
+            ########################
+            ########################
+            #########TESTING########
+            ########################
+            ########################        
+        
+        
         return self.components['Ichimoku_Signal']
