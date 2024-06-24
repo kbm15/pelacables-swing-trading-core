@@ -1,11 +1,9 @@
-from tradingcore import TimeSeriesData, IchimokuIndicator, Backtester
+from tradingcore import TimeSeriesData, Backtester, AwesomeOscillator,BollingerIndicator,IchimokuIndicator,KeltnerChannelsIndicator,MAIndicator,MACDIndicator,PSARIndicator,RSIIndicator,StochasticIndicator,VolumeIndicator
 from tradingcore.utils.yahoo_finance import check_tickers_exist     
-import numpy as np
-import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
 # Configure logging
@@ -47,6 +45,55 @@ def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backt
         fig.add_trace(go.Scatter(x=data[data['Position'] == 1].index, y=data['Close'][data['Position'] == 1], mode='markers', marker_symbol='triangle-up', marker_color='green', marker_size=10, name=f'Señal de Compra'), row=1, col=1)
         fig.add_trace(go.Scatter(x=data[data['Position'] == -1].index, y=data['Close'][data['Position'] == -1], mode='markers', marker_symbol='triangle-down', marker_color='red', marker_size=10, name=f'Señal de Venta '), row=1, col=1)
 
+def backtest_ticker(ticker, ts, indicators_strategies):
+    results = pd.DataFrame(columns=['Ticker', 'Indicator', 'Strategy', 'Valor final', 'Retorno total', 'Hold perfecto'])
+    for indicator_name, strategies in indicators_strategies.items():
+        # Dynamically create an instance of the indicator
+        indicator = globals()[indicator_name]()        
+        backtest = Backtester(ts, indicator)
+
+        for strategy in strategies:
+            indicator.setStrategy(strategy)
+            value, returned = backtest.run_backtest()
+            
+            results.loc[len(results)]={
+                'Ticker': ticker, 
+                'Indicator': indicator_name, 
+                'Strategy': strategy, 
+                'Valor final': value, 
+                'Retorno total': returned
+            }
+            # plot_strategy(indicator, ts, backtest)
+    
+        returned = (ts.data['Close'].iloc[-1] - ts.data['Close'].iloc[0]) / ts.data['Close'].iloc[0] * 100    
+        value = backtest.initial_capital * returned / 100
+        results.loc[len(results)]={
+                'Ticker': ticker, 
+                'Indicator': indicator_name, 
+                'Strategy': 'Hold', 
+                'Valor final': value, 
+                'Retorno total': returned
+            }
+    
+    return results
+
+def threaded_backtest(tickers, indicators_strategies):
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        results = []
+        for ticker in tickers:
+            ts = TimeSeriesData(ticker=ticker, interval='1h')
+            futures.append(executor.submit(backtest_ticker, ticker, ts, indicators_strategies))
+        
+        for future in as_completed(futures):
+            result = future.result()
+            if len(results) == 0:
+                results =[result]
+            else:
+                results.append(result)
+    results_df = pd.concat(results,axis=0, ignore_index=True)
+    return results_df
+
 mag7_tickers = ['AAPL','GOOGL','MSFT','NVDA','AMZN','META','TSLA']
 nasdaq_100_tickers = ['AAPL','MSFT','AMZN','GOOGL','GOOG','META','TSLA','NVDA','PYPL','ADBE','CMCSA','NFLX','INTC','PEP',
                       'CSCO','AVGO','COST','TMUS','TXN','QCOM','CHTR','SBUX','AMGN','MDLZ','ISRG','BKNG','GILD',
@@ -58,27 +105,23 @@ nasdaq_100_tickers = ['AAPL','MSFT','AMZN','GOOGL','GOOG','META','TSLA','NVDA','
                       ] 
 
 # yayo_tickers = ['AMX','APEI','ATEN','BGC','ERO','EYE','F','FBP','HBI','HNST','HRTG','IMMR','KTOS','MITK','ORN','OSBC','PAGS','PK','SILV','VIRC','XHR']
-tickers, trash = check_tickers_exist(nasdaq_100_tickers)
-strategies = ['Ichimoku','Kumo','KumoChikou','Kijun','KijunPSAR','TenkanKijun','KumoTenkanKijun',
-                         'TenkanKijunPSAR' ,'KumoTenkanKijunPSAR','KumoKiyunPSAR','KumoChikouPSAR','KumoKiyunChikouPSAR']
-results = pd.DataFrame(columns=['Ticker','Strategy','Valor final','Retorno total','Hold perfecto'])
+tickers, trash = check_tickers_exist(['SPY','QQQ'])
+indicators_strategies = {
+  "AwesomeOscillator": ['SMA_Crossover'],
+   "BollingerIndicator": ['Bollinger'],  
+   "IchimokuIndicator": ['Ichimoku', 'Kumo', 'KumoChikou', 'Kijun', 'KijunPSAR', 'TenkanKijun', 'KumoTenkanKijun', 'TenkanKijunPSAR', 'KumoTenkanKijunPSAR', 'KumoKiyunPSAR', 'KumoChikouPSAR', 'KumoKiyunChikouPSAR'],
+   "KeltnerChannelsIndicator": ['KC'],
+   "MAIndicator": ['MA'],
+   "MACDIndicator": ['MACD'],
+   "PSARIndicator": ['PSAR'],
+   "RSIIndicator": ['RSI', 'RSI_Falling', 'RSI_Divergence', 'RSI_Cross'],
+  "VolumeIndicator": ['Volume']
+}
+
+# results = pd.DataFrame(columns=['Ticker','Strategy','Valor final','Retorno total','Hold perfecto'])
 logging.info(f"Loading tickers {tickers}, discarded {trash}")
-for ticker in tickers:
-    ts = TimeSeriesData(symbol=ticker, interval='1h')   
-    indicator = IchimokuIndicator() 
-    for strategy in strategies:
-        indicator.setStrategy(strategy)
-        backtest = Backtester(ts,indicator)
-        value, returned, hold = backtest.run_backtest()
-        
-        current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':[strategy], 'Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
-        results = pd.concat([results, current_result], ignore_index = True)
-    
-    returned = (ts.data['Close'].iloc[len(ts.data)-1] - ts.data['Close'].iloc[0] )/ ts.data['Close'].iloc[0] * 100    
-    value = backtest.capital * returned / 100
-    current_result = pd.DataFrame({'Ticker':[ticker], 'Strategy':'Hold','Valor final':[value], 'Retorno total':[returned], 'Hold perfecto':[hold]})
-    results = pd.concat([results, current_result], ignore_index = True)
-    # plot_strategy(indicator, ts, backtest)
+
+results = threaded_backtest(tickers, indicators_strategies)
 
 results.to_csv('result.csv', index=False)
 
