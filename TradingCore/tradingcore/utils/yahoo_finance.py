@@ -2,6 +2,10 @@ import os
 import pickle
 import yfinance as yf
 from datetime import datetime, timedelta
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_cached_data(ticker):
     cache_folder = 'cache'
@@ -31,12 +35,18 @@ def fetch_yahoo_finance_data(ticker: str, interval: str, period: str = None, sta
 def check_tickers_exist(tickers):
     valid_tickers = []
     invalid_tickers = []
-    
+
+    tickers_back=tickers
+    list(set(tickers))
+
+    if len(tickers) < len(tickers):
+        logging.info(f'Detected duplicated tickers')
+
     for ticker in tickers:
         cached_data = load_cached_data(ticker)
         
         if cached_data is not None:
-            print(f"Using cached data for {ticker}")
+            logging.debug(f"Using cached data for {ticker}")
             data = cached_data
         else:
             #print(f"Fetching data for {ticker} from Yahoo Finance...")

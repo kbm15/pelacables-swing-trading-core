@@ -24,16 +24,16 @@ class TimeSeriesData:
         # Load data from cache if available
         cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
         if os.path.exists(cache_path):
-            logging.info(f"Loading data from cache: {cache_path}")
+            logging.debug(f"Loading data from cache: {cache_path}")
             with open(cache_path, 'rb') as f:
                 return pickle.load(f)
         else:
-            logging.info(f"No cache found. Fetching new data for {self.ticker} with interval {self.interval}")
+            logging.debug(f"No cache found. Fetching new data for {self.ticker} with interval {self.interval}")
             return self.fetch_new_data()
 
     def fetch_new_data(self):
         # Fetch new data from Yahoo Finance
-        logging.info(f"Fetching new data for {self.ticker} with interval {self.interval} and period {self.period}")
+        logging.debug(f"Fetching new data for {self.ticker} with interval {self.interval} and period {self.period}")
         data = fetch_yahoo_finance_data(self.ticker, self.interval, self.period)
         self.cache_data(data)
         return data
@@ -43,13 +43,13 @@ class TimeSeriesData:
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
         cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
-        logging.info(f"Caching data to {cache_path}")
+        logging.debug(f"Caching data to {cache_path}")
         with open(cache_path, 'wb') as f:
             pickle.dump(data, f)
     
     def delete_old_data(self, cutoff_date):
         # Delete data older than cutoff_date
-        logging.info(f"Deleting data older than {cutoff_date}")    
+        logging.debug(f"Deleting data older than {cutoff_date}")    
         if cutoff_date.tzinfo == None:             
             logging.error(f"Naive datetime object, timezone is {cutoff_date.tzinfo}") 
         else:
@@ -64,10 +64,10 @@ class TimeSeriesData:
         self.delete_old_data(cutoff_date)
 
         if last_date_dt < cutoff_date:
-            logging.info("Last data point is before cutoff date. Fetching new data for the entire period.")
+            logging.debug("Last data point is before cutoff date. Fetching new data for the entire period.")
             self.data = self.fetch_new_data()
         else:
-            logging.info("Last data point is after cutoff date. Fetching incremental data.")
+            logging.debug("Last data point is after cutoff date. Fetching incremental data.")
             new_data = fetch_yahoo_finance_data(ticker=self.ticker, start=last_date, end=datetime.now(timezone.utc).strftime('%Y-%m-%d'), interval=self.interval)
             self.data = pd.concat([self.data, new_data])
             
