@@ -1,25 +1,28 @@
-import pickle
+import os
+import pandas as pd
 import sys
 import argparse
 from typing import Any
 
 def create_pickle(filename: str, content: Any):
     """Create a pickle file with the given content."""
-    with open(filename, 'wb') as file:
-        pickle.dump(content, file)
+    pd.Series(content).to_pickle(filename)
     print(f"Data successfully pickled to {filename}")
 
 def read_pickle(filename: str) -> Any:
-    """Read and return the content of a pickle file."""
-    with open(filename, 'rb') as file:
-        content = pickle.load(file)
+    """Read and return the content of a pickle file."""    
+    content = pd.read_pickle(filename).tolist()
     print(f"Data successfully read from {filename}")
     return content
 
 def update_pickle(filename: str, content: Any):
     """Update the content of a pickle file."""
-    with open(filename, 'wb') as file:
-        pickle.dump(content, file)
+    if os.path.exists(filename):
+        existing_data = read_pickle(filename)
+        combined_data = list(set(existing_data + content))  # Remove duplicates while combining
+        create_pickle(filename, combined_data)
+    else:
+        create_pickle(filename, content)
     print(f"Data successfully updated in {filename}")
 
 def delete_pickle(filename: str):
