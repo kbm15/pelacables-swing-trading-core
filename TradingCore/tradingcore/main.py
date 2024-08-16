@@ -1,4 +1,4 @@
-from tradingcore import TimeSeriesData, Backtester, AwesomeOscillator,BollingerIndicator,IchimokuIndicator,KeltnerChannelsIndicator,MAIndicator,MACDIndicator,PSARIndicator,RSIIndicator,StochasticIndicator,VolumeIndicator
+from tradingcore import TimeSeriesData, Backtester, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
 from tradingcore.utils.yahoo_finance import check_tickers_exist     
 import pandas as pd
 import plotly.graph_objects as go
@@ -9,7 +9,7 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backtester):
+def plot_strategy(indicator:IchimokuCloud, ts:TimeSeriesData, backtest:Backtester):
 
     # Asegurarse de que no hay NaN en las columnas que se van a plotear
     required_columns = ['Close']
@@ -46,7 +46,7 @@ def plot_strategy(indicator:IchimokuIndicator, ts:TimeSeriesData, backtest:Backt
         fig.add_trace(go.Scatter(x=data[data['Position'] == -1].index, y=data['Close'][data['Position'] == -1], mode='markers', marker_symbol='triangle-down', marker_color='red', marker_size=10, name=f'Señal de Venta '), row=1, col=1)
 
 def backtest_ticker(ticker, ts, indicators_strategies):
-    results = pd.DataFrame(columns=['Ticker', 'Indicator', 'Strategy', 'Valor final', 'Retorno total', 'Hold perfecto'])
+    results = pd.DataFrame(columns=['Ticker', 'BaseIndicator', 'Strategy', 'Valor final', 'Retorno total', 'Hold perfecto'])
     for indicator_name, strategies in indicators_strategies.items():
         # Dynamically create an instance of the indicator
         indicator = globals()[indicator_name]()        
@@ -126,16 +126,16 @@ hist_yayo_tickers = [
 ]
 
 etf = ['QQQ','SPY']
-tickers, trash = check_tickers_exist(mag7_tickers)
+tickers, trash = check_tickers_exist(['GOOGL','MSFT','NVDA','AMZN','META'])
 indicators_strategies = {
   "AwesomeOscillator": ['SMA_Crossover'],
-   "BollingerIndicator": ['Bollinger'],  
-   "IchimokuIndicator": ['Ichimoku', 'Kumo', 'KumoChikou', 'Kijun', 'KijunPSAR', 'TenkanKijun', 'KumoTenkanKijun', 'TenkanKijunPSAR', 'KumoTenkanKijunPSAR', 'KumoKiyunPSAR', 'KumoChikouPSAR', 'KumoKiyunChikouPSAR'],
-   "KeltnerChannelsIndicator": ['KC'],
-   "MAIndicator": ['MA'],
-   "MACDIndicator": ['MACD'],
-   "PSARIndicator": ['PSAR'],
-   "RSIIndicator": ['RSI', 'RSI_Falling', 'RSI_Divergence', 'RSI_Cross'],
+   "BollingerBands": ['Bollinger'],  
+   "IchimokuCloud": ['Ichimoku', 'Kumo', 'KumoChikou', 'Kijun', 'KijunPSAR', 'TenkanKijun', 'KumoTenkanKijun', 'TenkanKijunPSAR', 'KumoTenkanKijunPSAR', 'KumoKiyunPSAR', 'KumoChikouPSAR', 'KumoKiyunChikouPSAR'],
+   "KeltnerChannel": ['KC'],
+   "MovingAverage": ['MA'],
+   "MACD": ['MACD'],
+   "PSAR": ['PSAR'],
+   "RSI": ['RSI', 'RSI_Falling', 'RSI_Divergence', 'RSI_Cross'],
   "VolumeIndicator": ['Volume']
 }
 

@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class RSIIndicator(Indicator):
+class RSI(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'RSI','RSI_Falling','RSI_Divergence','RSI_Cross']
     def __init__(self, strategy: str = None, length: int = 14):
         self.strategy = strategy

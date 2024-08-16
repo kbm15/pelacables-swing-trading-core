@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class MAIndicator(Indicator):
+class MovingAverage(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'MA']
     def __init__(self, strategy: str = None, length: int = 50, ma_type: str = 'sma'):
         self.strategy = strategy

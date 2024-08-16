@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class VolumeIndicator(Indicator):
+class VolumeIndicator(BaseIndicator):
     POSSIBLE_STRATEGIES = [None, 'Volume']
 
     def __init__(self, strategy: str = None):

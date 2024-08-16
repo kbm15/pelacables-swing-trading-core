@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class KeltnerChannelsIndicator(Indicator):
+class KeltnerChannel(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'KC']
     def __init__(self, strategy: str = None):
         self.strategy = strategy

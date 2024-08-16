@@ -1,5 +1,5 @@
 from tradingcore.data.timeseries import TimeSeriesData
-from tradingcore.indicators.base import Indicator
+from tradingcore.indicators.base import BaseIndicator
 import pandas as pd
 import logging
 
@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Backtester:
-    def __init__(self, tsdata: TimeSeriesData, indicator: Indicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5, take_profit: float = 1.04, backoff: int = 0):
+    def __init__(self, tsdata: TimeSeriesData, indicator: BaseIndicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5, take_profit: float = 1.04, backoff: int = 0):
         self.tsdata = tsdata
         self.indicator = indicator
         self.initial_capital = initial_capital

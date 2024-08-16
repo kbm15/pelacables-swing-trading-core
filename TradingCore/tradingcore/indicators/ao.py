@@ -1,7 +1,7 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
 class AwesomeOscillator:

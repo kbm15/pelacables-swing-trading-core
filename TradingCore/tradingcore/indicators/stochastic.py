@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class StochasticIndicator(Indicator):
+class StochasticOscillator(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'Stochastic']
     def __init__(self, strategy: str = None, length: int = 14, smooth_k: int = 3, smooth_d: int = 3):
         self.strategy = strategy

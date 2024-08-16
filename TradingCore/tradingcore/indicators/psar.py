@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class PSARIndicator(Indicator):
+class PSAR(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'PSAR']
     def __init__(self, strategy: str = None ):
         self.strategy = strategy

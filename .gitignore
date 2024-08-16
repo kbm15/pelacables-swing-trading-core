@@ -1,6 +1,8 @@
-yayo_screener/
 .env
 .venv/
 cache/
 __pycache__/
 build/
+old/
+*.db
+*.pkl

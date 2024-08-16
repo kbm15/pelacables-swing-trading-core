@@ -1,10 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-from .base import Indicator
+from .base import BaseIndicator
 import hashlib
 
-class MACDIndicator(Indicator):
+class MACD(BaseIndicator):
     POSSIBLE_STRATEGIES=[None,'MACD']
     def __init__(self, strategy: str = None, fast: int = 12, slow: int = 26, signal: int = 9):
         self.strategy = strategy
