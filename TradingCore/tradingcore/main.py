@@ -8,6 +8,7 @@ import queue
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 import logging
 
 # Configure logging
@@ -83,16 +84,31 @@ def backtest_ticker(ticker, ts, indicators_strategies):
 
 # Worker thread that runs and processes tasks from the queue
 def worker():
+    logging.info("Worker thread started and waiting for tasks...")
     while True:
         # Get a task from the queue
         ticker = task_queue.get()
+        
         if ticker is None:
+            logging.info("None received, worker is exiting...")
             break  # Exit loop if None is received
-        ts = TimeSeriesData(ticker=ticker, interval='1h')
-        # Submit the task to the executor for processing
-        executor.submit(backtest_ticker, ticker, ts, indicators_strategies)
+        
+        logging.info(f"Processing ticker: {ticker}")
+        
+        try:
+            ts = TimeSeriesData(ticker=ticker, interval='1h')
+            logging.info(f"TimeSeriesData created for ticker: {ticker}")
+            
+            # Submit the task to the executor for processing
+            executor.submit(backtest_ticker, ticker, ts, indicators_strategies)
+            logging.info(f"Task submitted for backtesting: {ticker}")
+        except Exception as e:
+            logging.error(f"Error while processing ticker {ticker}: {str(e)}")
+        
         task_queue.task_done()
+        logging.info(f"Task completed for ticker: {ticker}")
 
+    logging.info("Worker thread has been stopped.")
 def threaded_backtest(tickers, indicators_strategies):
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -143,14 +159,27 @@ hist_yayo_tickers = [
 
 etf = ['QQQ','SPY']
 
-# Define the FastAPI app
-app = FastAPI()
-
 # Define a thread-safe queue to store incoming tasks
 task_queue = queue.Queue()
 
 # Define a ThreadPoolExecutor with a fixed number of threads
 executor = ThreadPoolExecutor(max_workers=5)
+
+# Define the FastAPI app with a lifespan event handler
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the worker thread during the startup
+    worker_thread = threading.Thread(target=worker, daemon=True)
+    worker_thread.start()
+    
+    # Yield control back to FastAPI (app runs here)
+    yield
+    
+    # Optionally, cleanup during shutdown
+    task_queue.put(None)  # Signal the worker to exit
+    worker_thread.join()  # Ensure the worker thread finishes
+
+app = FastAPI(lifespan=lifespan)
 
 indicators_strategies = {
   "AwesomeOscillator": ['SMA_Crossover'],
@@ -163,6 +192,8 @@ indicators_strategies = {
    "RSI": ['RSI', 'RSI_Falling', 'RSI_Divergence', 'RSI_Cross'],
   "VolumeIndicator": ['Volume']
 }
+
+
 
 # Define an API endpoint to receive the data
 @app.post("/add-screener/")
@@ -203,17 +234,8 @@ async def add_ticker(data):
             "message": "Invalid ticker data"
         }
     
-    # Return a response
-    return {
-        "received_tickers": tickers
-    }
+    
 
-# Shutdown the executor and worker gracefully on exit
-@app.on_event("shutdown")
-def shutdown_event():
-    # Stop the worker thread by putting `None` in the queue
-    task_queue.put(None)
-    executor.shutdown(wait=True)
 
 # Running the app using Uvicorn server (optional, useful when running locally)
 if __name__ == "__main__":
