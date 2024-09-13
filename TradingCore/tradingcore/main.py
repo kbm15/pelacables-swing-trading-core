@@ -1,9 +1,13 @@
-from tradingcore import TimeSeriesData, Backtester, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
+from tradingcore import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
 from tradingcore.utils.yahoo_finance import check_tickers_exist     
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import json
+import queue
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from fastapi import FastAPI, HTTPException
 import logging
 
 # Configure logging
@@ -77,6 +81,18 @@ def backtest_ticker(ticker, ts, indicators_strategies):
     
     return results
 
+# Worker thread that runs and processes tasks from the queue
+def worker():
+    while True:
+        # Get a task from the queue
+        ticker = task_queue.get()
+        if ticker is None:
+            break  # Exit loop if None is received
+        ts = TimeSeriesData(ticker=ticker, interval='1h')
+        # Submit the task to the executor for processing
+        executor.submit(backtest_ticker, ticker, ts, indicators_strategies)
+        task_queue.task_done()
+
 def threaded_backtest(tickers, indicators_strategies):
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -126,7 +142,16 @@ hist_yayo_tickers = [
 ]
 
 etf = ['QQQ','SPY']
-tickers, trash = check_tickers_exist(['GOOGL','MSFT','NVDA','AMZN','META'])
+
+# Define the FastAPI app
+app = FastAPI()
+
+# Define a thread-safe queue to store incoming tasks
+task_queue = queue.Queue()
+
+# Define a ThreadPoolExecutor with a fixed number of threads
+executor = ThreadPoolExecutor(max_workers=5)
+
 indicators_strategies = {
   "AwesomeOscillator": ['SMA_Crossover'],
    "BollingerBands": ['Bollinger'],  
@@ -139,10 +164,65 @@ indicators_strategies = {
   "VolumeIndicator": ['Volume']
 }
 
-# results = pd.DataFrame(columns=['Ticker','Strategy','Valor final','Retorno total','Hold perfecto'])
-logging.info(f"Loading tickers {tickers}, discarded {trash}")
+# Define an API endpoint to receive the data
+@app.post("/add-screener/")
+async def add_screener(data: ScreenerData):
 
-results = threaded_backtest(tickers, indicators_strategies)
+    # Extract the ticker list from the received data
+    tickers, trash = check_tickers_exist(data.tickers)
+    logging.info(f"Loading tickers {tickers}, discarded {trash}")
+
+    # Add the incoming data to the task queue
+    task_queue.put(tickers)
+    
+    # Return a response
+    return {
+        "received_tickers": tickers
+    }
+
+# Define an API endpoint to receive the data
+@app.post("/add-ticker/")
+async def add_ticker(data):
+
+    # Extract the ticker list from the received data
+    json_data = json.loads(data)
+    ticker = json_data['ticker']
+    
+    tickers, trash = check_tickers_exist([ticker])
+    logging.info(f"Loading tickers {tickers}, discarded {trash}")
+
+    if len(tickers) == 1:
+        logging.info(f"Loading single ticker {ticker}")
+        ts = TimeSeriesData(ticker=ticker, interval='1h')
+        result = backtest_ticker(ticker=ticker, ts=ts, indicators_strategies=indicators_strategies)
+        return result.to_json(orient="records")
+
+    else:
+        logging.error(f"Failed to load ticker from json {json_data}")
+        return {
+            "message": "Invalid ticker data"
+        }
+    
+    # Return a response
+    return {
+        "received_tickers": tickers
+    }
+
+# Shutdown the executor and worker gracefully on exit
+@app.on_event("shutdown")
+def shutdown_event():
+    # Stop the worker thread by putting `None` in the queue
+    task_queue.put(None)
+    executor.shutdown(wait=True)
+
+# Running the app using Uvicorn server (optional, useful when running locally)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# OLD 
+
+""" results = threaded_backtest(ticker_list, indicators_strategies)
 
 results.to_csv('result.csv', index=False)
 
@@ -163,4 +243,4 @@ print(average_ret_per_strategy)
 print("\nMax Retorno total Strategy per Ticker (sorted):")
 print(max_ret_per_ticker)
 
-logging.info(f"Finished batch")
+logging.info(f"Finished batch") """

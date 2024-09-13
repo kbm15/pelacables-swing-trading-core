@@ -1,5 +1,7 @@
 import pandas as pd
-from decouple import Config
+from decouple import config
+from tradingcore.screeners import BaseScreener
+
 
 
 class YayoScreener(BaseScreener):
@@ -8,10 +10,8 @@ class YayoScreener(BaseScreener):
 
     def generate_dataframe(self) -> pd.DataFrame:
 
-        # Initialize Config object
-        config = Config()
         # Read the table from the URL    
-        dfs = pd.read_html(config('YAYO_PORTFOLIO_URL'))
+        dfs = pd.read_html(config('PORTFOLIO_URL'))
 
         # Select the desired DataFrame
         original_df = dfs[0]
@@ -20,7 +20,7 @@ class YayoScreener(BaseScreener):
         row_index_with_nan = current_tickers_df.index[current_tickers_df.iloc[:, 0].isna()].tolist()[0] - current_tickers_df.index[0]
         current_tickers_df = current_tickers_df.iloc[:row_index_with_nan]
 
-        return df
+        return current_tickers_df
 
     def update_table_with_custom_data(self):
         # Generate the DataFrame with custom data

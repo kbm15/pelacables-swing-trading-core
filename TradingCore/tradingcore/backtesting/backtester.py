@@ -1,13 +1,29 @@
 from tradingcore.data.timeseries import TimeSeriesData
 from tradingcore.indicators.base import BaseIndicator
-import pandas as pd
+from tradingcore.utils.db_connector import DatabaseConnector
+from datetime import datetime
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Backtester:
-    def __init__(self, tsdata: TimeSeriesData, indicator: BaseIndicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5, take_profit: float = 1.04, backoff: int = 0):
+    def __init__(self, tsdata: TimeSeriesData, indicator: BaseIndicator, table_name: str = 'backtest', initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5, take_profit: float = 1.04, backoff: int = 0):
+        # Initialize with database path and table name
+        self.table_name = table_name
+        self.connection = DatabaseConnector()
+        
+        # Ensure the table exists with the new 'model' column
+        self.connection.execute(f'''
+            CREATE TABLE IF NOT EXISTS {self.table_name} (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker REAL NOT NULL UNIQUE,
+                added TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                return FLOAT NOT NULL                
+            )
+        ''')
+        self.connection.commit()
         self.tsdata = tsdata
         self.indicator = indicator
         self.initial_capital = initial_capital
@@ -21,6 +37,31 @@ class Backtester:
         self.take_profit = take_profit
         self.backoff = backoff
 
+    def upsert_backtest(self,  ret):
+
+        # Convert the current datetime to a timestamp
+        current_time = int(datetime.now().timestamp())
+
+        # First, check if the ticker exists in the table
+        self.connection.execute("SELECT 1 FROM backtest WHERE ticker = ?", (self.tsdata.ticker,))
+        exists = self.connection.fetchone()
+
+        if exists:
+            # If the ticker exists, update the record
+            self.connection.execute("""
+                UPDATE backtest 
+                SET added = ?, strategy = ?, return = ? 
+                WHERE ticker = ?
+            """, (current_time, self.indicator.strategy, ret, self.tsdata.ticker))
+        else:
+            # If the ticker does not exist, insert a new record
+            self.connection.execute("""
+                INSERT INTO backtest (ticker, added, strategy, return)
+                VALUES (?, ?, ?, ?)
+            """, (self.tsdata.ticker, current_time, self.indicator.strategy, ret))
+
+        # Commit the transaction and close the connection
+        self.connection.commit()
 
 
     def run_backtest(self):
@@ -62,4 +103,4 @@ class Backtester:
         logging.debug(f'Finished backtest {self.indicator.strategy} on {self.tsdata.ticker}')
         final_portfolio_value = self.capital + self.holdings * self.close[i]
         total_return = (final_portfolio_value - self.initial_capital) / self.initial_capital * 100
-        return final_portfolio_value, total_return
+        self.upsert_backtest(total_return)

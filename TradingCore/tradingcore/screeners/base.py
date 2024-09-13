@@ -8,12 +8,13 @@ class BaseScreener:
         self.table_name = table_name
         self.connection = DatabaseConnector()
         
-        # Ensure the table exists
+        # Ensure the table exists with the new 'model' column
         self.connection.execute(f'''
             CREATE TABLE IF NOT EXISTS {self.table_name} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                value REAL NOT NULL UNIQUE,
-                added TEXT NOT NULL
+                ticker REAL NOT NULL UNIQUE,
+                added TEXT NOT NULL,
+                model TEXT NOT NULL
             )
         ''')
         self.connection.commit()
@@ -21,29 +22,33 @@ class BaseScreener:
     def update_table(self, df: pd.DataFrame):
         # Add 'added' column with the current timestamp
         df['added'] = int(datetime.now().timestamp())
+        
+        # Ensure 'Screener' column is present in the DataFrame
+        if 'Screener' not in df.columns:
+            raise ValueError("DataFrame must contain a 'Screener' column")
 
-        # Fetch current values in the database
-        self.connection.execute(f'SELECT value FROM {self.table_name}')
+        # Fetch current tickers in the database
+        self.connection.execute(f'SELECT ticker FROM {self.table_name}')
         current_data = self.connection.fetchall()
-        current_values = set(row[0] for row in current_data)
+        current_tickers = set(row[0] for row in current_data)
 
-        # Identify values to delete (present in the database but not in the DataFrame)
-        to_delete = current_values - set(df['Ticker'])
+        # Identify tickers to delete (present in the database but not in the DataFrame)
+        to_delete = current_tickers - set(df['Ticker'])
 
-        # Delete rows from the database with values not in the DataFrame
+        # Delete rows from the database with tickers not in the DataFrame
         if to_delete:
             placeholders = ', '.join(['?'] * len(to_delete))
             self.connection.execute(f'''
                 DELETE FROM {self.table_name}
-                WHERE value IN ({placeholders})
+                WHERE ticker IN ({placeholders})
             ''', list(to_delete))
 
         # Insert new rows if they don't exist in the database
         for _, row in df.iterrows():
             self.connection.execute(f'''
-                INSERT OR IGNORE INTO {self.table_name} (value, added)
-                VALUES (?, ?)
-            ''', (row['Ticker'], row['added']))
+                INSERT OR IGNORE INTO {self.table_name} (ticker, added, model)
+                VALUES (?, ?, ?)
+            ''', (row['Ticker'], row['added'], row['Screener']))
 
         self.connection.commit()
 
