@@ -15,7 +15,7 @@ class Backtester:
         self.purchase_fraction = purchase_fraction
         self.sell_fraction = sell_fraction
         self.data = []
-        self.open = tsdata.data['Close'].tolist()
+        self.open = tsdata.data['Open'].tolist()[ 200 : ]
         self.only_profit = True
         self.take_profit = take_profit
         self.backoff = backoff
@@ -25,7 +25,7 @@ class Backtester:
 
     def run_backtest(self):
         logging.debug(f'Starting indicator {self.indicator.strategy} on {self.tsdata.ticker}')
-        self.data = self.indicator.calculate(self.tsdata.data).tolist()
+        self.data = self.indicator.calculate(self.tsdata.data).tolist()[ 200 : ]
 
         self.capital = self.initial_capital
         self.holdings = 0.0
@@ -35,7 +35,7 @@ class Backtester:
         max_holdings = self.holdings
         price_bought = 0.0        
         backoff_cnt = 0
-        for i in range(1, len(self.tsdata.data)-1):            
+        for i in range(0, len(self.data)-1):            
             if self.backoff and backoff_cnt: backoff_cnt-=1
             if (self.capital > 0.0) and (self.data[i] == 1) and backoff_cnt == 0:  # Comprar
                 amount_to_spend = min(self.capital, max(self.initial_capital,self.capital) * self.purchase_fraction)
