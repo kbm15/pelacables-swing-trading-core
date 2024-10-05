@@ -1,4 +1,4 @@
-from library.utils.db_connector import DatabaseConnector
+from tradingcore_library.utils.db_connector import DatabaseConnector
 import pandas as pd
 from datetime import datetime
 

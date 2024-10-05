@@ -6,7 +6,7 @@ from typing import Dict
 def get_indicators_strategies(folder_path: str) -> Dict[str, list]:
     indicators = {}
     cwd = os.getcwd()
-    indicators_folder = os.path.join(cwd, folder_path)
+    indicators_folder = os.path.join(cwd, 'tradingcore_library', folder_path)
 
     # Add indicators folder to sys.path to enable relative imports
     sys.path.append(cwd)

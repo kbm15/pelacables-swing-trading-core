@@ -2,7 +2,7 @@ import unittest
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta, timezone
-from library.data.timeseries import TimeSeriesData
+from tradingcore_library.data.timeseries import TimeSeriesData
 
 class TestTimeSeriesData(unittest.TestCase):
 

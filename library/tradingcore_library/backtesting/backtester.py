@@ -1,7 +1,7 @@
-from library.data.timeseries import TimeSeriesData
-from library.indicators.base import BaseIndicator
-from library.utils.db_connector import DatabaseConnector
-from datetime import datetime
+from tradingcore_library.data.timeseries import TimeSeriesData
+from tradingcore_library.indicators.base import BaseIndicator
+from tradingcore_library.utils.db_connector import DatabaseConnector
+from datetime import datetime, timezone
 import logging
 
 # Configure logging
@@ -40,19 +40,20 @@ class Backtester:
     def upsert_backtest(self,  ret):
 
         # Convert the current datetime to a timestamp
-        current_time = int(datetime.now().timestamp())
+        current_time = int(datetime.now(timezone.utc).timestamp())
 
         # First, check if the ticker exists in the table
-        self.connection.execute("SELECT 1 FROM backtest WHERE ticker = ?", (self.tsdata.ticker,))
+        self.connection.execute("SELECT return FROM backtest WHERE ticker = ?", (self.tsdata.ticker,))
         exists = self.connection.fetchone()
 
         if exists:
             # If the ticker exists, update the record
-            self.connection.execute("""
-                UPDATE backtest 
-                SET added = ?, strategy = ?, return = ? 
-                WHERE ticker = ?
-            """, (current_time, self.indicator.strategy, ret, self.tsdata.ticker))
+            if exists[0] < ret:
+                self.connection.execute("""
+                    UPDATE backtest 
+                    SET added = ?, strategy = ?, return = ? 
+                    WHERE ticker = ?
+                """, (current_time, self.indicator.strategy, ret, self.tsdata.ticker))
         else:
             # If the ticker does not exist, insert a new record
             self.connection.execute("""
@@ -62,6 +63,23 @@ class Backtester:
 
         # Commit the transaction and close the connection
         self.connection.commit()
+
+    def check_updated(self):
+
+        updated = False
+        # Convert the current datetime to a timestamp
+        current_time = int(datetime.now(timezone.utc).timestamp())
+
+        # First, check if the ticker exists in the table
+        self.connection.execute("SELECT added FROM backtest WHERE ticker = ?", (self.tsdata.ticker,))
+        exists = self.connection.fetchone()
+
+        if exists:
+            added_time = datetime.fromtimestamp(exists[0], timezone.utc)
+            if current_time - added_time.timestamp() < 604800:
+                updated = True
+
+        return updated
 
 
     def run_backtest(self):
@@ -104,3 +122,4 @@ class Backtester:
         final_portfolio_value = self.capital + self.holdings * self.close[i]
         total_return = (final_portfolio_value - self.initial_capital) / self.initial_capital * 100
         self.upsert_backtest(total_return)
+        return
