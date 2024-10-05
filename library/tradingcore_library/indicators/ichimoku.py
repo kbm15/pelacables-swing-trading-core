@@ -76,7 +76,8 @@ class IchimokuCloud(BaseIndicator):
         elif self.strategy == 'Kumo':
             # Buy signal: Price > Senkou Span A and price > Senkou Span B
             self.components['Ichimoku_Signal'] = np.where(
-                (data['Close'] > self.components['Ichimoku_SenkouA']) , 
+                (data['Close'] > self.components['Ichimoku_SenkouA']) & 
+                (data['Close'] > self.components['Ichimoku_SenkouB']), 
                 1, self.components['Ichimoku_Signal'])
             
             # Sell signal: Price < Senkou Span A and price > Senkou Span B
@@ -89,6 +90,7 @@ class IchimokuCloud(BaseIndicator):
             # Buy signal: Price > Senkou Span A, price > Senkou Span B, and Chikou Span > price 26 periods ago
             self.components['Ichimoku_Signal'] = np.where(
                 (data['Close'] > self.components['Ichimoku_SenkouA']) &  
+                (data['Close'] > self.components['Ichimoku_SenkouB']) & 
                 (self.components['Ichimoku_Chikou'].shift(26) > data['Close'].shift(26)), 
                 1, self.components['Ichimoku_Signal'])
             
@@ -129,6 +131,7 @@ class IchimokuCloud(BaseIndicator):
         elif self.strategy == 'TenkanKijun':
             # Buy signal: Tenkan-sen > Kijun-sen
             self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Kijun'] < data['Close']) &
                 (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']), 
                 1, self.components['Ichimoku_Signal'])
             
@@ -142,7 +145,8 @@ class IchimokuCloud(BaseIndicator):
             # Buy signal: Tenkan-sen > Kijun-sen
             self.components['Ichimoku_Signal'] = np.where(
                 (self.components['Ichimoku_Tenkan'] > self.components['Ichimoku_Kijun']) &
-                (data['Close'] > self.components['Ichimoku_SenkouA']), 
+                (data['Close'] > self.components['Ichimoku_SenkouA']) &
+                (data['Close'] > self.components['Ichimoku_SenkouB']), 
                 1, self.components['Ichimoku_Signal'])
             
             # Sell signal: Tenkan-sen < Kijun-sen
@@ -186,6 +190,7 @@ class IchimokuCloud(BaseIndicator):
             
             # Sell signal: Tenkan-sen < Kijun-sen and price < PSAR
             self.components['Ichimoku_Signal'] = np.where(
+                (self.components['Ichimoku_Kijun'] > data['Close']) &
                 (self.components['Ichimoku_Tenkan'] < self.components['Ichimoku_Kijun']) & 
                 (data['Close'] < self.components['Ichimoku_SenkouA']) &
                 (data['Close'] < self.components['Ichimoku_SenkouB']) &
@@ -219,6 +224,7 @@ class IchimokuCloud(BaseIndicator):
             # Buy signal: Price > Senkou Span A, price > Senkou Span B, and Chikou Span > price 26 periods ago
             self.components['Ichimoku_Signal'] = np.where(
                 (data['Close'] > self.components['Ichimoku_SenkouA']) &  
+                (data['Close'] > self.components['Ichimoku_SenkouB']) &  
                 (self.components['Ichimoku_Chikou'].shift(26) > data['Close'].shift(26))&
                 (data['Close'] > self.components['PSAR_Long']), 
                 1, self.components['Ichimoku_Signal'])
@@ -239,6 +245,7 @@ class IchimokuCloud(BaseIndicator):
             self.components['Ichimoku_Signal'] = np.where(
                 (self.components['Ichimoku_Kijun'] < data['Close']) &
                 (data['Close'] > self.components['Ichimoku_SenkouA']) &  
+                (data['Close'] > self.components['Ichimoku_SenkouB']) &  
                 (self.components['Ichimoku_Chikou'].shift(26) > data['Close'].shift(26))&
                 (data['Close'] > self.components['PSAR_Long']), 
                 1, self.components['Ichimoku_Signal'])
