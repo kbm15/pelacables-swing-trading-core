@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from tradingcore_library import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
+from tradingcore_library import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
 from tradingcore_library.utils.yahoo_finance import check_tickers_exist    
 from tradingcore_library.utils.db_connector import DatabaseConnector 
 import queue
@@ -16,7 +16,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 TABLE_NAME = "backtest"
 
 # DB Connection
-def upsert_backtest(ticker, ret, strategy):
+def initialize_table():
+    db_connection = DatabaseConnector()
+    db_connection.execute(f'''
+                CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker REAL NOT NULL UNIQUE,
+                    added TEXT NOT NULL,
+                    strategy TEXT NOT NULL,
+                    return FLOAT NOT NULL                
+                )
+            ''')
+    db_connection.commit()
+    db_connection.close()
+def upsert_backtest(ticker, ret, strategy, db_connection):
 
     # Convert the current datetime to a timestamp
     current_time = int(datetime.now(timezone.utc).timestamp())
@@ -42,7 +55,7 @@ def upsert_backtest(ticker, ret, strategy):
     # Commit the transaction and close the connection
     db_connection.commit()
 
-def check_updated(ticker):
+def check_updated(ticker, db_connection):
 
     updated = False
     # Convert the current datetime to a timestamp
@@ -89,7 +102,7 @@ def backtest_ticker(ticker, ts):
 def handle_future_result(future: Future):
     try:
         result = future.result()
-        logging.info(f"Backtest result received for ticker: {result['ticker']}")
+        logging.debug(f"Backtest result received for ticker: {result['ticker']}")
         # Enqueue the result for further processing
         result_queue.put(result)
     except Exception as e:
@@ -107,11 +120,11 @@ def worker():
             task_queue.task_done()
             break  # Exit loop if None is received
 
-        logging.info(f"Processing ticker: {ticker}")
+        logging.debug(f"Processing ticker: {ticker}")
 
         try:
             ts = TimeSeriesData(ticker=ticker, interval='1h')
-            logging.info(f"TimeSeriesData created for ticker: {ticker}")
+            logging.debug(f"TimeSeriesData created for ticker: {ticker}")
 
             # Submit the task to the executor for processing
             future = executor.submit(backtest_ticker, ticker, ts)
@@ -122,7 +135,7 @@ def worker():
             # Optionally store the future
             futures.append(future)
 
-            logging.info(f"Task submitted for backtesting: {ticker}")
+            logging.debug(f"Task submitted for backtesting: {ticker}")
 
 
         except Exception as e:
@@ -145,17 +158,7 @@ futures = []
 
 
 # DB Connection
-db_connection = DatabaseConnector()
-db_connection.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticker REAL NOT NULL UNIQUE,
-                added TEXT NOT NULL,
-                strategy TEXT NOT NULL,
-                return FLOAT NOT NULL                
-            )
-        ''')
-db_connection.connection.commit()
+
 
 
 
@@ -173,6 +176,7 @@ async def lifespan(app: FastAPI):
     # Optionally, cleanup during shutdown
     task_queue.put(None)  # Signal the worker to exit
     worker_thread.join()  # Ensure the worker thread finishes
+    executor.shutdown(wait=True)
 
 
 # Create the FastAPI app
@@ -182,14 +186,18 @@ app = FastAPI(lifespan=lifespan)
 
 # Function to process results
 def process_results():
+    db_connection = DatabaseConnector()
     while True:
         try:
-            result = result_queue.get(timeout=5)
+            result = result_queue.get(timeout=60)
             logging.info(f"Processed backtest result for {result}")
             # Here, you can store the result in a database or perform other actions
+            if result['strategy'] is not None:
+                upsert_backtest(result['ticker'], result['return'], result['strategy'], db_connection)
             result_queue.task_done()
         except queue.Empty:
             logging.info("No more results to process.")
+
             break
 
 
@@ -224,6 +232,7 @@ async def add_ticker(data):
     if len(tickers) == 1:
         logging.info(f"Loading single ticker {ticker}")
         ts = TimeSeriesData(ticker=ticker, interval='1h')
+        ts.update_data()
         result = backtest_ticker(ticker=ticker, ts=ts)
         return result.to_json(orient="records")
 
