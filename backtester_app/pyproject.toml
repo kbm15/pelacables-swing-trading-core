@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "backtester-app"
+version = "0.1.0"
+description = ""
+authors = ["KBM15 <keyblademaster_01@hotmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.2.2"
+fastapi = "^0.112.1"
+uvicorn = "^0.30.6"
+tradingcore-library = { path = "../library", develop = true }
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
