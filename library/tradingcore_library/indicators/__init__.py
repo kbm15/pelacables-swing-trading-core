@@ -11,6 +11,7 @@ from .psar import PSAR
 from .rsi import RSI
 from .stochastic import StochasticOscillator
 from .volume import VolumeIndicator
+from .hold import Hold
 
 __all__ = [
     "AwesomeOscillator",
@@ -24,4 +25,5 @@ __all__ = [
     "RSI",
     "StochasticOscillator",
     "VolumeIndicator",
+    "Hold"
 ]

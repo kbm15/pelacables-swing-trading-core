@@ -7,5 +7,6 @@
     "MACD": ["MACD"],
     "PSAR": ["PSAR"],
     "RSI": ["RSI", "RSI_Falling", "RSI_Divergence", "RSI_Cross"],
-    "VolumeIndicator": ["Volume"]
+    "VolumeIndicator": ["Volume"],
+    "Hold": ["Hold"]
 }
