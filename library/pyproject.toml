@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "tradingcore"
+name = "tradingcore_library"
 version = "0.1.0"
 description = ""
 authors = ["KBM15 <keyblademaster_01@hotmail.com>"]
