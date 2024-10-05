@@ -76,17 +76,17 @@ class TimeSeriesData:
     def calc_period(self):
         # Calculate the period based on interval
         if self.interval == '1m':
-            return '5d'
+            return '7d'
         elif self.interval in ['60m', '1h', '1d']:
-            return '1y'
+            return '2y'
         else:
             return '1mo'
     
     def calculate_cutoff_date(self) -> datetime:
         # Calculate the cutoff date based on the period
-        if self.period == '5d':
-            return datetime.now(timezone.utc) - timedelta(days=5)
-        elif self.period == '1y':
-            return datetime.now(timezone.utc) - timedelta(days=365)
+        if self.period == '7d':
+            return datetime.now(timezone.utc) - timedelta(days=7)
+        elif self.period == '2y':
+            return datetime.now(timezone.utc) - timedelta(days=730)
         else:  # Default to '1mo'
             return datetime.now(timezone.utc) - timedelta(days=30)
