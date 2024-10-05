@@ -1,8 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
 .env
 .venv/
+# App
 cache/
-__pycache__/
-build/
-old/
 *.db
 *.pkl

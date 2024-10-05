@@ -1,5 +1,5 @@
-from tradingcore import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
-from tradingcore.utils.yahoo_finance import check_tickers_exist     
+from library import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator
+from library.utils.yahoo_finance import check_tickers_exist     
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots

@@ -1,6 +1,6 @@
-from tradingcore.data.timeseries import TimeSeriesData
-from tradingcore.indicators.base import BaseIndicator
-from tradingcore.utils.db_connector import DatabaseConnector
+from library.data.timeseries import TimeSeriesData
+from library.indicators.base import BaseIndicator
+from library.utils.db_connector import DatabaseConnector
 from datetime import datetime
 import logging
 
