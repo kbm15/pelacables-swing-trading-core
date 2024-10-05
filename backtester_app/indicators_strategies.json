@@ -1,0 +1,11 @@
+{
+    "AwesomeOscillator": ["SMA_Crossover"],
+    "BollingerBands": ["Bollinger"],
+    "IchimokuCloud": ["Ichimoku", "Kumo", "KumoChikou", "Kijun", "KijunPSAR", "TenkanKijun", "KumoTenkanKijun", "TenkanKijunPSAR", "KumoTenkanKijunPSAR", "KumoKiyunPSAR", "KumoChikouPSAR", "KumoKiyunChikouPSAR"],
+    "KeltnerChannel": ["KC"],
+    "MovingAverage": ["MA"],
+    "MACD": ["MACD"],
+    "PSAR": ["PSAR"],
+    "RSI": ["RSI", "RSI_Falling", "RSI_Divergence", "RSI_Cross"],
+    "VolumeIndicator": ["Volume"]
+}
