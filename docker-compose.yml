@@ -1,0 +1,20 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"  # RabbitMQ main port
+      - "15672:15672"  # RabbitMQ management port
+
+  telegram-app:
+    build: ./telegram_app
+    container_name: telegram-app
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      RABBITMQ_HOST: amqp://rabbitmq
+      TICKER_REQUEST_QUEUE: ticker_requests
+      TICKER_RESPONSE_QUEUE: ticker_responses
+      NOTIFICATION_QUEUE: indicator_notifications
+    depends_on:
+      - rabbitmq
+    restart: on-failure
