@@ -1,14 +1,24 @@
-from tradingcore_library import TimeSeriesData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
+from tradingcore import TimeSeriesData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
 import pika
 import time
 import logging
 import json
-import threading
 import requests  # For signaling the coordinator
+from decouple import config,UndefinedValueError
 
-RABBITMQ_HOST = 'localhost'
-TASK_QUEUE = 'indicator_tasks'
-RESULTS_QUEUE = 'indicator_results'
+try:
+    RABBITMQ_HOST = config('RABBITMQ_HOST')
+    TASK_QUEUE = config('TASK_QUEUE')
+    RESULTS_QUEUE = config('RESULTS_QUEUE')
+except UndefinedValueError as e:
+    # Handle the case where a variable is not defined in .env
+    print(f"Error: {e}")
+    exit(1)
+
+print("Configuration Loaded:")
+print(f"RABBITMQ_HOST = {RABBITMQ_HOST}")
+print(f"TASK_QUEUE = {TASK_QUEUE}")
+print(f"RESULTS_QUEUE = {RESULTS_QUEUE}")
 
 logging.basicConfig(level=logging.INFO)
 
