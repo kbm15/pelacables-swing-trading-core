@@ -1,5 +1,5 @@
-from tradingcore_library.data.timeseries import TimeSeriesData
-from tradingcore_library.indicators.base import BaseIndicator
+from tradingcore.data.timeseries import TimeSeriesData
+from tradingcore.indicators.base import BaseIndicator
 import logging
 
 # Configure logging

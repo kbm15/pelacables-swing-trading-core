@@ -1,6 +1,6 @@
 import pandas as pd
 from decouple import config
-from tradingcore_library.screeners import BaseScreener
+from tradingcore.screeners import BaseScreener
 
 
 

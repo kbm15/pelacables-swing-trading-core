@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
-from tradingcore_library import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
-from tradingcore_library.utils.yahoo_finance import check_tickers_exist    
-from tradingcore_library.utils.db_connector import DatabaseConnector 
+from tradingcore import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
+from tradingcore.utils.yahoo_finance import check_tickers_exist    
+from tradingcore.utils.db_connector import DatabaseConnector 
 import queue
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed

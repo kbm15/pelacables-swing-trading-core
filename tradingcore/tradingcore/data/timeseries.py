@@ -3,7 +3,7 @@ import os
 import pickle
 from datetime import datetime, timedelta, timezone
 import logging
-from tradingcore_library.utils.yahoo_finance import fetch_yahoo_finance_data
+from tradingcore.utils.yahoo_finance import fetch_yahoo_finance_data
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
