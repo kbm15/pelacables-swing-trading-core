@@ -12,4 +12,6 @@ build/
 # App
 cache/
 *.db
+*.db-journal
 *.pkl
+.vscode
