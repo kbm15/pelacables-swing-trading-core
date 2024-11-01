@@ -18,3 +18,12 @@ services:
     depends_on:
       - rabbitmq
     restart: on-failure
+
+  indicator-app:
+    build: ./indicator_app
+    container_name: indicator-app
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - rabbitmq
+    restart: on-failure

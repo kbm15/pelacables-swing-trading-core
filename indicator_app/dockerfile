@@ -24,6 +24,6 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY indicator_app ./app
+COPY indicator_app /app/src
 
-ENTRYPOINT ["python", "-m", "app.main"]
+ENTRYPOINT ["python", "/app/src/app.py"]
