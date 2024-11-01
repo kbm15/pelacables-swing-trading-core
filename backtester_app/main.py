@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from tradingcore import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
-from tradingcore.utils.yahoo_finance import check_tickers_exist    
-from tradingcore.utils.db_connector import DatabaseConnector 
+
 import queue
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
@@ -17,7 +16,6 @@ TABLE_NAME = "backtest"
 
 # DB Connection
 def initialize_table():
-    db_connection = DatabaseConnector()
     db_connection.execute(f'''
                 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,7 +184,6 @@ app = FastAPI(lifespan=lifespan)
 
 # Function to process results
 def process_results():
-    db_connection = DatabaseConnector()
     while True:
         try:
             result = result_queue.get(timeout=60)
