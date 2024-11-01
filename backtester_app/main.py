@@ -11,10 +11,50 @@ from typing import List, Dict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Updated load_tasks to include configurations
+def load_tasks(tickers, indicators_strategies_path):
+    # Load the indicators and strategies from the JSON file
+    with open(indicators_strategies_path, 'r') as file:
+        indicators_strategies = json.load(file)
+
+    # Define all configurations we want to test
+    config_variations = [
+        {
+            "take_profit": tp,
+            "backoff": bf,
+            "purchase_fraction": pf,
+            "sell_fraction": sf
+        }
+        for tp in [1.00, 1.02, 1.05]          # Example take_profit values
+        for bf in [0, 2, 5]                   # Example backoff values
+        for pf in [0.33, 0.67, 1.0]            # Example purchase_fraction values
+        for sf in [0.33, 0.67, 1.0]            # Example sell_fraction values
+    ]
+
+    # Generate task list
+    tasks = []
+    
+    for ticker in tickers:
+        task_count = 0
+        for indicator, strategies in indicators_strategies.items():
+            for strategy in strategies:
+                for config in config_variations:
+                    task = {
+                        "ticker": ticker,
+                        "indicator": indicator,
+                        "strategy": strategy,
+                        **config,  # Merge the configuration settings into each task
+                        "backtest": True
+                    }
+                    tasks.append(task)
+                    task_count += 1
+    return tasks, task_count
+
+# Updated ResultAggregator to track best config per ticker
 class ResultAggregator:
     def __init__(self, strategies_per_ticker: Dict[str, int]):
-        # Each ticker has a list of responses and a total count of expected responses
         self.responses = defaultdict(lambda: {'results': [], 'count': 0})
         self.strategies_per_ticker = strategies_per_ticker  # Expected counts per ticker
 
@@ -31,151 +71,88 @@ class ResultAggregator:
             print(f"Best result for {ticker}: {best_result}")
             del self.responses[ticker]  # Clear data once processed
 
+class IndicatorWorker:
+    def __init__(self, task, ts):
+        self.task = task
+        self.ts = ts  # Shared TimeSeriesData instance
 
-    def send_best_result(self, best_result):
-        # Send the best result to the database or a specific queue
-        print(f"Sending best result for ticker {best_result['ticker']} with return {best_result['total_return']}")
-        # You can push the result to another queue or write it to a database here
-
-
-class IndicatorWorker(threading.Thread):
-    def __init__(self, tasks):
-        super().__init__()
+    def process_task(self):
+        logging.debug(f"Processing task: {self.task}")
         
-        self.static_tasks = tasks
-        logging.info(f"Initialized with static tasks.")
-
-    def process_task(self, task_data):
-        logging.info(f"Processing task: {task_data}")
+        # Use the shared TimeSeriesData instance directly
+        indicator = globals()[self.task['indicator']]()
+        indicator.setStrategy(self.task['strategy'])
+        bs = indicator.calculate(self.ts.data)
         
-        result_data = {}
-        if 'ticker' in task_data and 'indicator' in task_data and 'strategy' in task_data:
-            result_data['ticker'] = task_data['ticker']
-            result_data['indicator'] = task_data['indicator']
-            result_data['strategy'] = task_data['strategy']
-            
-            # Example time series data retrieval and indicator processing
-            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
-            ts.update_data()
-
-            indicator = globals()[task_data['indicator']]()
-            indicator.setStrategy(task_data['strategy'])
-            bs = indicator.calculate(ts.data)
-            
-            if bs.iloc[-1] == 1:
-                result_data['signal'] = 'buy'
-            elif bs.iloc[-1] == -1:
-                result_data['signal'] = 'sell'
-            
-            if task_data.get("backtest"):
-                logging.info(f"Backtest task: {task_data}")
-                result_data['total_return'] = self.run_backtest(ts, bs)
-                result_data['signal'] = None
-            else:
-                logging.info(f"Indicator task: {task_data}")
-        
-        logging.info(f"Completed task with result: {result_data}")
+        result_data = {
+            "ticker": self.task["ticker"],
+            "indicator": self.task["indicator"],
+            "strategy": self.task["strategy"],
+            "take_profit": self.task["take_profit"],
+            "backoff": self.task["backoff"],
+            "purchase_fraction": self.task["purchase_fraction"],
+            "sell_fraction": self.task["sell_fraction"],
+            "total_return": self.run_backtest(bs)
+        }
+        logging.debug(f"Completed task with result: {result_data}")
         return result_data
-        
-    def run_backtest(self, ts, bs):
+    
+    def run_backtest(self, bs):
         initial_capital = 10000.0
-        purchase_fraction = 1
-        sell_fraction = 1
-        take_profit = 1.02
-        backoff = 0
+        purchase_fraction = self.task["purchase_fraction"]
+        sell_fraction = self.task["sell_fraction"]
+        take_profit = self.task["take_profit"]
+        backoff = self.task["backoff"]
         only_profit = True
         
-        # Calculate the date one year ago from the last date in the time series
-        last_date = ts.data.index[-1]
-        one_year_ago = last_date - timedelta(days=365)
-        one_quarter_ago = last_date - timedelta(days=90)    
-
-        # Filter the 'Open' prices from one year ago to the last value
-        open_prices = ts.data.loc[one_quarter_ago:, 'Open'].tolist()
+        last_date = self.ts.data.index[-1]
+        one_quarter_ago = last_date - timedelta(days=90)
+        open_prices = self.ts.data.loc[one_quarter_ago:, 'Open'].tolist()
         data = bs.loc[one_quarter_ago:].tolist()
         
         capital = initial_capital
         holdings = 0.0
-        max_holdings = holdings
         price_bought = 0.0
         backoff_cnt = 0
-
-        for i in range(0, len(data) - 1):
+        
+        for i in range(len(data) - 1):
             if backoff and backoff_cnt:
                 backoff_cnt -= 1
-            if (capital > 0.0) and (data[i] == 1) and backoff_cnt == 0:
-                amount_to_spend = min(capital, max(initial_capital, capital) * purchase_fraction)
-                shares_bought = amount_to_spend / open_prices[i + 1]
-                if only_profit:
-                    price_bought = ((open_prices[i + 1] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings)
+            if capital > 0.0 and data[i] == 1 and backoff_cnt == 0:
+                amount_to_spend = capital * purchase_fraction
+                shares_bought = amount_to_spend / open_prices[i]
+                price_bought = ((open_prices[i] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings) if only_profit and holdings > 0 else open_prices[i]
                 holdings += shares_bought
                 capital -= amount_to_spend
                 backoff_cnt = backoff
-                if max_holdings < holdings:
-                    max_holdings = holdings
-            elif (holdings > 0.0) and (data[i] == -1) and (price_bought * take_profit) < open_prices[i + 1] and backoff_cnt == 0:
-                shares_to_sell = min(holdings, max((max_holdings * sell_fraction), (initial_capital * purchase_fraction)))
+            elif holdings > 0.0 and data[i] == -1 and open_prices[i] >= price_bought * take_profit and backoff_cnt == 0:
+                shares_to_sell = holdings * sell_fraction
                 holdings -= shares_to_sell
-                capital += shares_to_sell * open_prices[i + 1]
+                capital += shares_to_sell * open_prices[i]
                 backoff_cnt = backoff
-                if holdings == 0:
-                    max_holdings = holdings
-
+        
         final_portfolio_value = capital + holdings * open_prices[-1]
         total_return = (final_portfolio_value - initial_capital) / initial_capital * 100
         return total_return
 
-    def start_consuming(self):
-        logging.info(f"Starting local processing with static tasks.")
-        for task_data in self.static_tasks:
-            result_data = self.process_task(task_data)
-            result_queue.put_nowait(result_data)
-
-        logging.info(f"Completed processing all static tasks.")
-
-def load_tasks(tickers, indicators_strategies_path):
-    # Load the indicators and strategies from the JSON file
-    with open(indicators_strategies_path, 'r') as file:
-        indicators_strategies = json.load(file)
-
-    # Generate task list
-    tasks = []
-    
-    for ticker in tickers:
-        length = 0
-        for indicator, strategies in indicators_strategies.items():
-            for strategy in strategies:
-                tasks.append({
-                    "ticker": ticker,
-                    "indicator": indicator,
-                    "strategy": strategy,
-                    "backtest": True  # Set as needed
-                })
-                length += 1
-    return tasks, length
-
-result_queue = queue.Queue()
-task_queue = queue.Queue()
 
 def main():
-    tickers = ['NVDA', 'MSFT']  # Example list of tickers
+    ticker = 'SN'  # Single ticker for testing
     indicators_strategies_path = "indicators_strategies.json"
-
-    # Load tasks from tickers and indicator-strategy combinations
-    tasks,length = load_tasks(tickers, indicators_strategies_path)
-    worker = IndicatorWorker(tasks)
-
-    result_aggregator = ResultAggregator({ticker: length for ticker in tickers})
-
-    # Start the worker with the static tasks
-    worker.start_consuming()
-
-    for i in range(len(tasks)):
-        result_data = result_queue.get(timeout=10)
-        result_aggregator.add_result(result_data['ticker'], result_data)
-        result_queue.task_done()
     
+    # Load TimeSeriesData once and share it across tasks
+    ts = TimeSeriesData(ticker=ticker, interval='1d')
+    ts.update_data()  # Pre-fetch and store data for reuse
+
+    # Load tasks with varying configurations for purchase and sell fractions
+    tasks, _ = load_tasks([ticker], indicators_strategies_path)
+    result_aggregator = ResultAggregator({ticker: len(tasks)})
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(IndicatorWorker(task, ts).process_task) for task in tasks]
+        for future in as_completed(futures):
+            result = future.result()
+            result_aggregator.add_result(result['ticker'], result)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()
