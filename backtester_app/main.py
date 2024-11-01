@@ -1,247 +1,181 @@
-from datetime import datetime, timezone
 from tradingcore import TimeSeriesData, Backtester, ScreenerData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
-
+from tradingcore.utils.yahoo_finance import check_tickers_exist
 import queue
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from contextlib import asynccontextmanager
 import logging
 import json
+from datetime import datetime, timedelta
+from collections import defaultdict
+from typing import List, Dict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-TABLE_NAME = "backtest"
+class ResultAggregator:
+    def __init__(self, strategies_per_ticker: Dict[str, int]):
+        # Each ticker has a list of responses and a total count of expected responses
+        self.responses = defaultdict(lambda: {'results': [], 'count': 0})
+        self.strategies_per_ticker = strategies_per_ticker  # Expected counts per ticker
 
-# DB Connection
-def initialize_table():
-    db_connection.execute(f'''
-                CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ticker REAL NOT NULL UNIQUE,
-                    added TEXT NOT NULL,
-                    strategy TEXT NOT NULL,
-                    return FLOAT NOT NULL                
-                )
-            ''')
-    db_connection.commit()
-    db_connection.close()
-def upsert_backtest(ticker, ret, strategy, db_connection):
+    def add_result(self, ticker: str, result_data: Dict):
+        self.responses[ticker]['results'].append(result_data)
+        self.responses[ticker]['count'] += 1
 
-    # Convert the current datetime to a timestamp
-    current_time = int(datetime.now(timezone.utc).timestamp())
-
-    # First, check if the ticker exists in the table
-    db_connection.execute("SELECT return FROM backtest WHERE ticker = ?", (ticker,))
-    exists = db_connection.fetchone()
-
-    if exists:
-        # If the ticker exists, update the record
-        db_connection.execute("""
-            UPDATE backtest 
-            SET added = ?, strategy = ?, return = ? 
-            WHERE ticker = ?
-        """, (current_time, strategy, ret, ticker))
-    else:
-        # If the ticker does not exist, insert a new record
-        db_connection.execute("""
-            INSERT INTO backtest (ticker, added, strategy, return)
-            VALUES (?, ?, ?, ?)
-        """, (ticker, current_time, strategy, ret))
-
-    # Commit the transaction and close the connection
-    db_connection.commit()
-
-def check_updated(ticker, db_connection):
-
-    updated = False
-    # Convert the current datetime to a timestamp
-    current_time = int(datetime.now(timezone.utc).timestamp())
-
-    # First, check if the ticker exists in the table
-    db_connection.execute("SELECT added FROM backtest WHERE ticker = ?", (ticker,))
-    exists = db_connection.fetchone()
-
-    if exists:
-        added_time = datetime.fromtimestamp(exists[0], timezone.utc)
-        if current_time - added_time.timestamp() < 604800:
-            updated = True
-
-    return updated
-
-# Backtest thread function
-def backtest_ticker(ticker, ts):
-    # Read indicators_strategies.json
-    with open('indicators_strategies.json') as f:
-        indicators_strategies = json.load(f)
-    previous_return = 0
-    previous_strategy = None
-
-    for indicator_name, strategies in indicators_strategies.items():
-        # Dynamically create an instance of the indicator
-        indicator = globals()[indicator_name]()
-        backtest = Backtester(ts, indicator)
-
-        for strategy in strategies:
-            indicator.setStrategy(strategy)
-            returned = backtest.run_backtest()
-            if returned > previous_return:
-                previous_return = returned
-                previous_strategy = strategy
-    result = {
-        "ticker": ticker,
-        "strategy": previous_strategy,
-        "return": previous_return
-    }
-    return result
-
-# Callback function for future results
-def handle_future_result(future: Future):
-    try:
-        result = future.result()
-        logging.debug(f"Backtest result received for ticker: {result['ticker']}")
-        # Enqueue the result for further processing
-        result_queue.put(result)
-    except Exception as e:
-        logging.error(f"Error in backtest task: {str(e)}")
-
-# Worker thread that runs and processes tasks from the queue
-def worker():
-    logging.info("Worker thread started and waiting for tasks...")
-    while True:
-        # Get a task from the queue
-        ticker = task_queue.get()
-
-        if ticker is None:
-            logging.info("None received, worker is exiting...")
-            task_queue.task_done()
-            break  # Exit loop if None is received
-
-        logging.debug(f"Processing ticker: {ticker}")
-
-        try:
-            ts = TimeSeriesData(ticker=ticker, interval='1h')
-            logging.debug(f"TimeSeriesData created for ticker: {ticker}")
-
-            # Submit the task to the executor for processing
-            future = executor.submit(backtest_ticker, ticker, ts)
-
-            # Attach callback
-            future.add_done_callback(handle_future_result)
-
-            # Optionally store the future
-            futures.append(future)
-
-            logging.debug(f"Task submitted for backtesting: {ticker}")
+        # If all results for the ticker are collected, process the best result
+        if self.responses[ticker]['count'] == self.strategies_per_ticker[ticker]:
+            best_result = max(
+                self.responses[ticker]['results'],
+                key=lambda r: r.get('total_return', 0)
+            )
+            print(f"Best result for {ticker}: {best_result}")
+            del self.responses[ticker]  # Clear data once processed
 
 
-        except Exception as e:
-            logging.error(f"Error while processing ticker {ticker}: {str(e)}")
+    def send_best_result(self, best_result):
+        # Send the best result to the database or a specific queue
+        print(f"Sending best result for ticker {best_result['ticker']} with return {best_result['total_return']}")
+        # You can push the result to another queue or write it to a database here
 
-        task_queue.task_done()
 
-    logging.info("Worker thread has been stopped.")
+class IndicatorWorker(threading.Thread):
+    def __init__(self, tasks):
+        super().__init__()
         
+        self.static_tasks = tasks
+        logging.info(f"Initialized with static tasks.")
 
-# Initialize task and result queues 
-task_queue = queue.Queue()
-result_queue = queue.Queue()
+    def process_task(self, task_data):
+        logging.info(f"Processing task: {task_data}")
+        
+        result_data = {}
+        if 'ticker' in task_data and 'indicator' in task_data and 'strategy' in task_data:
+            result_data['ticker'] = task_data['ticker']
+            result_data['indicator'] = task_data['indicator']
+            result_data['strategy'] = task_data['strategy']
+            
+            # Example time series data retrieval and indicator processing
+            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
+            ts.update_data()
 
-# Define a ThreadPoolExecutor with a fixed number of threads
-executor = ThreadPoolExecutor(max_workers=5)
+            indicator = globals()[task_data['indicator']]()
+            indicator.setStrategy(task_data['strategy'])
+            bs = indicator.calculate(ts.data)
+            
+            if bs.iloc[-1] == 1:
+                result_data['signal'] = 'buy'
+            elif bs.iloc[-1] == -1:
+                result_data['signal'] = 'sell'
+            
+            if task_data.get("backtest"):
+                logging.info(f"Backtest task: {task_data}")
+                result_data['total_return'] = self.run_backtest(ts, bs)
+                result_data['signal'] = None
+            else:
+                logging.info(f"Indicator task: {task_data}")
+        
+        logging.info(f"Completed task with result: {result_data}")
+        return result_data
+        
+    def run_backtest(self, ts, bs):
+        initial_capital = 10000.0
+        purchase_fraction = 1
+        sell_fraction = 1
+        take_profit = 1.02
+        backoff = 0
+        only_profit = True
+        
+        # Calculate the date one year ago from the last date in the time series
+        last_date = ts.data.index[-1]
+        one_year_ago = last_date - timedelta(days=365)
+        one_quarter_ago = last_date - timedelta(days=90)    
 
-# Shared data structure to store futures 
-futures = []
+        # Filter the 'Open' prices from one year ago to the last value
+        open_prices = ts.data.loc[one_quarter_ago:, 'Open'].tolist()
+        data = bs.loc[one_quarter_ago:].tolist()
+        
+        capital = initial_capital
+        holdings = 0.0
+        max_holdings = holdings
+        price_bought = 0.0
+        backoff_cnt = 0
 
+        for i in range(0, len(data) - 1):
+            if backoff and backoff_cnt:
+                backoff_cnt -= 1
+            if (capital > 0.0) and (data[i] == 1) and backoff_cnt == 0:
+                amount_to_spend = min(capital, max(initial_capital, capital) * purchase_fraction)
+                shares_bought = amount_to_spend / open_prices[i + 1]
+                if only_profit:
+                    price_bought = ((open_prices[i + 1] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings)
+                holdings += shares_bought
+                capital -= amount_to_spend
+                backoff_cnt = backoff
+                if max_holdings < holdings:
+                    max_holdings = holdings
+            elif (holdings > 0.0) and (data[i] == -1) and (price_bought * take_profit) < open_prices[i + 1] and backoff_cnt == 0:
+                shares_to_sell = min(holdings, max((max_holdings * sell_fraction), (initial_capital * purchase_fraction)))
+                holdings -= shares_to_sell
+                capital += shares_to_sell * open_prices[i + 1]
+                backoff_cnt = backoff
+                if holdings == 0:
+                    max_holdings = holdings
 
-# DB Connection
+        final_portfolio_value = capital + holdings * open_prices[-1]
+        total_return = (final_portfolio_value - initial_capital) / initial_capital * 100
+        return total_return
 
+    def start_consuming(self):
+        logging.info(f"Starting local processing with static tasks.")
+        for task_data in self.static_tasks:
+            result_data = self.process_task(task_data)
+            result_queue.put_nowait(result_data)
 
+        logging.info(f"Completed processing all static tasks.")
 
+def load_tasks(tickers, indicators_strategies_path):
+    # Load the indicators and strategies from the JSON file
+    with open(indicators_strategies_path, 'r') as file:
+        indicators_strategies = json.load(file)
 
-# Define the FastAPI app with a lifespan event handler
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Start the worker thread during the startup
-    worker_thread = threading.Thread(target=worker, daemon=True)
-    worker_thread.start()
+    # Generate task list
+    tasks = []
     
-    
-    # Yield control back to FastAPI (app runs here)
-    yield
-    
-    # Optionally, cleanup during shutdown
-    task_queue.put(None)  # Signal the worker to exit
-    worker_thread.join()  # Ensure the worker thread finishes
-    executor.shutdown(wait=True)
-
-
-# Create the FastAPI app
-app = FastAPI(lifespan=lifespan)
-
-
-
-# Function to process results
-def process_results():
-    while True:
-        try:
-            result = result_queue.get(timeout=60)
-            logging.info(f"Processed backtest result for {result}")
-            # Here, you can store the result in a database or perform other actions
-            if result['strategy'] is not None:
-                upsert_backtest(result['ticker'], result['return'], result['strategy'], db_connection)
-            result_queue.task_done()
-        except queue.Empty:
-            logging.info("No more results to process.")
-
-            break
-
-
-# Define an API endpoint to receive the data
-@app.post("/add-screener/")
-async def add_screener(data: ScreenerData, background_tasks: BackgroundTasks):
-
-    # Extract the ticker list from the received data
-    tickers, trash = check_tickers_exist(data.tickers)
-    logging.info(f"Loading tickers {tickers}, discarded {trash}")
-
-    # Add the incoming data to the task queue
     for ticker in tickers:
-        task_queue.put(ticker)
+        length = 0
+        for indicator, strategies in indicators_strategies.items():
+            for strategy in strategies:
+                tasks.append({
+                    "ticker": ticker,
+                    "indicator": indicator,
+                    "strategy": strategy,
+                    "backtest": True  # Set as needed
+                })
+                length += 1
+    return tasks, length
+
+result_queue = queue.Queue()
+task_queue = queue.Queue()
+
+def main():
+    tickers = ['NVDA', 'MSFT']  # Example list of tickers
+    indicators_strategies_path = "indicators_strategies.json"
+
+    # Load tasks from tickers and indicator-strategy combinations
+    tasks,length = load_tasks(tickers, indicators_strategies_path)
+    worker = IndicatorWorker(tasks)
+
+    result_aggregator = ResultAggregator({ticker: length for ticker in tickers})
+
+    # Start the worker with the static tasks
+    worker.start_consuming()
+
+    for i in range(len(tasks)):
+        result_data = result_queue.get(timeout=10)
+        result_aggregator.add_result(result_data['ticker'], result_data)
+        result_queue.task_done()
     
-    background_tasks.add_task(process_results)
 
-    # Return a response
-    return {
-        "received_tickers": tickers
-    }
-
-# Define an API endpoint to receive the data
-@app.post("/add-ticker/")
-async def add_ticker(data):
-
-    ticker = data.ticker
-    
-    tickers, trash = check_tickers_exist([ticker])
-    logging.info(f"Loading tickers {tickers}, discarded {trash}")
-
-    if len(tickers) == 1:
-        logging.info(f"Loading single ticker {ticker}")
-        ts = TimeSeriesData(ticker=ticker, interval='1h')
-        ts.update_data()
-        result = backtest_ticker(ticker=ticker, ts=ts)
-        return result.to_json(orient="records")
-
-    else:
-        logging.error(f"Failed to load ticker from json {data}")
-        return {
-            "message": "Invalid ticker data"
-        }
-    
-
-
-# Running the app using Uvicorn server (optional, useful when running locally)
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    logging.basicConfig(level=logging.INFO)
+    main()
