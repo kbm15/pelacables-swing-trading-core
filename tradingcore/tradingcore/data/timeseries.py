@@ -18,7 +18,7 @@ class TimeSeriesData:
         self.interval = interval
         self.period = self.calc_period()
         self.cache_dir = cache_dir
-        self.data = self.load_data()
+        self.data = self.load_data().drop_duplicates(subset=['Close'], keep='first')
 
     def load_data(self):
         # Load data from cache if available
@@ -65,11 +65,11 @@ class TimeSeriesData:
 
         if last_date_dt < cutoff_date:
             logging.debug("Last data point is before cutoff date. Fetching new data for the entire period.")
-            self.data = self.fetch_new_data()
-        else:
+            self.data = self.fetch_new_data().drop_duplicates(subset=['Close'], keep='first')
+        elif timedelta(hours=1) < (datetime.now(timezone.utc) - last_date_dt):
             logging.debug("Last data point is after cutoff date. Fetching incremental data.")
             new_data = fetch_yahoo_finance_data(ticker=self.ticker, start=last_date, end=datetime.now(timezone.utc).strftime('%Y-%m-%d'), interval=self.interval)
-            self.data = pd.concat([self.data, new_data])
+            self.data = pd.concat([self.data, new_data]).drop_duplicates(subset=['Close'], keep='first')
             
         self.cache_data(self.data)
 

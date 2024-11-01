@@ -14,7 +14,7 @@ class Hold(BaseIndicator):
         self.cache = {}
     
     def calculate(self, data: pd.DataFrame):
-        self.components = pd.DataFrame({'Hold_Signal': [1] * (len(data)-1)})
+        self.components = pd.DataFrame(index=data.index, data={'Hold_Signal': np.ones(len(data))})
         return self.components['Hold_Signal']
     
     def setStrategy(self, strategy: str = None):
