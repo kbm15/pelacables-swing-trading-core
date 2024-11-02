@@ -40,6 +40,20 @@ def load_tasks(tickers, indicators_strategies_path):
         task_count = 0
         for indicator, strategies in indicators_strategies.items():
             for strategy in strategies:
+                if indicator == 'Hold':
+                    task = {
+                        "ticker": ticker,
+                        "indicator": indicator,
+                        "strategy": strategy,
+                        "take_profit": 1.00,
+                        "backoff": 0,
+                        "purchase_fraction": 1.0,
+                        "sell_fraction": 1.0,
+                        "backtest": True
+                    }
+                    tasks.append(task)
+                    task_count += 1
+                    continue
                 for config in config_variations:
                     task = {
                         "ticker": ticker,
@@ -61,7 +75,9 @@ class ResultAggregator:
     def add_result(self, ticker: str, result_data: Dict):
         self.responses[ticker]['results'].append(result_data)
         self.responses[ticker]['count'] += 1
-
+        # Print the total return of the Hold indicator
+        if result_data['indicator'] == 'Hold':
+            print(f"Total return for {ticker} with Hold indicator: {result_data.get('total_return', 0)}")
         # If all results for the ticker are collected, process the best result
         if self.responses[ticker]['count'] == self.strategies_per_ticker[ticker]:
             best_result = max(
@@ -115,29 +131,35 @@ class IndicatorWorker:
         price_bought = 0.0
         backoff_cnt = 0
         
-        for i in range(len(data) - 1):
+        for i in range(len(data) - 2):  # Loop to len(data) - 2 to safely access open_prices[i + 1]
             if backoff and backoff_cnt:
                 backoff_cnt -= 1
+            
             if capital > 0.0 and data[i] == 1 and backoff_cnt == 0:
+                # Buy at the next day's open price
                 amount_to_spend = capital * purchase_fraction
-                shares_bought = amount_to_spend / open_prices[i]
-                price_bought = ((open_prices[i] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings) if only_profit and holdings > 0 else open_prices[i]
+                shares_bought = amount_to_spend / open_prices[i + 1]
+                price_bought = ((open_prices[i + 1] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings) if only_profit and holdings > 0 else open_prices[i + 1]
                 holdings += shares_bought
                 capital -= amount_to_spend
                 backoff_cnt = backoff
-            elif holdings > 0.0 and data[i] == -1 and open_prices[i] >= price_bought * take_profit and backoff_cnt == 0:
+            
+            elif holdings > 0.0 and data[i] == -1 and open_prices[i + 1] >= price_bought * take_profit and backoff_cnt == 0:
+                # Sell at the next day's open price
                 shares_to_sell = holdings * sell_fraction
                 holdings -= shares_to_sell
-                capital += shares_to_sell * open_prices[i]
+                capital += shares_to_sell * open_prices[i + 1]
                 backoff_cnt = backoff
         
+        # Final portfolio calculation
         final_portfolio_value = capital + holdings * open_prices[-1]
         total_return = (final_portfolio_value - initial_capital) / initial_capital * 100
         return total_return
 
 
+
 def main():
-    ticker = 'SN'  # Single ticker for testing
+    ticker = 'NVDA'  # Single ticker for testing
     indicators_strategies_path = "indicators_strategies.json"
     
     # Load TimeSeriesData once and share it across tasks
