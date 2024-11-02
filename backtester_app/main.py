@@ -23,12 +23,10 @@ def load_tasks(tickers, indicators_strategies_path):
     config_variations = [
         {
             "take_profit": tp,
-            "backoff": bf,
             "purchase_fraction": pf,
             "sell_fraction": sf
         }
         for tp in [1.00, 1.02, 1.05]          # Example take_profit values
-        for bf in [0, 2, 5]                   # Example backoff values
         for pf in [0.33, 0.67, 1.0]            # Example purchase_fraction values
         for sf in [0.33, 0.67, 1.0]            # Example sell_fraction values
     ]
@@ -46,7 +44,6 @@ def load_tasks(tickers, indicators_strategies_path):
                         "indicator": indicator,
                         "strategy": strategy,
                         "take_profit": 1.00,
-                        "backoff": 0,
                         "purchase_fraction": 1.0,
                         "sell_fraction": 1.0,
                         "backtest": True
@@ -94,72 +91,38 @@ class IndicatorWorker:
 
     def process_task(self):
         logging.debug(f"Processing task: {self.task}")
-        
-        # Use the shared TimeSeriesData instance directly
+
+        # Initialize the indicator
         indicator = globals()[self.task['indicator']]()
         indicator.setStrategy(self.task['strategy'])
-        bs = indicator.calculate(self.ts.data)
+
+        # Initialize Backtester with the provided parameters
+        backtester = Backtester(
+            tsdata=self.ts,
+            indicator=indicator,
+            initial_capital=10000.0,
+            purchase_fraction=self.task["purchase_fraction"],
+            sell_fraction=self.task["sell_fraction"],
+            take_profit=self.task["take_profit"]
+        )
+
+        # Run the backtest and get the total return
+        total_return = backtester.run_backtest()
         
         result_data = {
             "ticker": self.task["ticker"],
             "indicator": self.task["indicator"],
             "strategy": self.task["strategy"],
             "take_profit": self.task["take_profit"],
-            "backoff": self.task["backoff"],
             "purchase_fraction": self.task["purchase_fraction"],
             "sell_fraction": self.task["sell_fraction"],
-            "total_return": self.run_backtest(bs)
+            "total_return": total_return
         }
         logging.debug(f"Completed task with result: {result_data}")
         return result_data
-    
-    def run_backtest(self, bs):
-        initial_capital = 10000.0
-        purchase_fraction = self.task["purchase_fraction"]
-        sell_fraction = self.task["sell_fraction"]
-        take_profit = self.task["take_profit"]
-        backoff = self.task["backoff"]
-        only_profit = True
-        
-        last_date = self.ts.data.index[-1]
-        one_quarter_ago = last_date - timedelta(days=90)
-        open_prices = self.ts.data.loc[one_quarter_ago:, 'Open'].tolist()
-        data = bs.loc[one_quarter_ago:].tolist()
-        
-        capital = initial_capital
-        holdings = 0.0
-        price_bought = 0.0
-        backoff_cnt = 0
-        
-        for i in range(len(data) - 2):  # Loop to len(data) - 2 to safely access open_prices[i + 1]
-            if backoff and backoff_cnt:
-                backoff_cnt -= 1
-            
-            if capital > 0.0 and data[i] == 1 and backoff_cnt == 0:
-                # Buy at the next day's open price
-                amount_to_spend = capital * purchase_fraction
-                shares_bought = amount_to_spend / open_prices[i + 1]
-                price_bought = ((open_prices[i + 1] * shares_bought) + (price_bought * holdings)) / (shares_bought + holdings) if only_profit and holdings > 0 else open_prices[i + 1]
-                holdings += shares_bought
-                capital -= amount_to_spend
-                backoff_cnt = backoff
-            
-            elif holdings > 0.0 and data[i] == -1 and open_prices[i + 1] >= price_bought * take_profit and backoff_cnt == 0:
-                # Sell at the next day's open price
-                shares_to_sell = holdings * sell_fraction
-                holdings -= shares_to_sell
-                capital += shares_to_sell * open_prices[i + 1]
-                backoff_cnt = backoff
-        
-        # Final portfolio calculation
-        final_portfolio_value = capital + holdings * open_prices[-1]
-        total_return = (final_portfolio_value - initial_capital) / initial_capital * 100
-        return total_return
-
-
 
 def main():
-    ticker = 'NVDA'  # Single ticker for testing
+    ticker = 'AAPL'  # Single ticker for testing
     indicators_strategies_path = "indicators_strategies.json"
     
     # Load TimeSeriesData once and share it across tasks
