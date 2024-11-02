@@ -31,7 +31,7 @@ class KeltnerChannel(BaseIndicator):
         if self.data_hash != data_hash:
             # Update the hash
             self.data_hash = data_hash
-            kc_result = ta.kc(data['High'], data['Low'], data['Close'], length=20, scalar=2)
+            kc_result = ta.kc(data['High'], data['Low'], data['Close'], length=20, scalar=2.0)
             # Assign Keltner Channels to the DataFrameD
             self.components['KC_Middle'] = kc_result['KCBe_20_2.0']
             self.components['KC_Upper'] = kc_result['KCUe_20_2.0']

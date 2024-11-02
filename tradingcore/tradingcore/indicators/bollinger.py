@@ -33,7 +33,7 @@ class BollingerBands(BaseIndicator):
             self.data_hash = data_hash
 
             # Calcular Bandas de Bollinger
-            bbands_result = ta.bbands(data['Close'], length=20, std=2)
+            bbands_result = ta.bbands(data['Close'], length=20, std=2.0)
 
             # Asignar las columnas al DataFrame 'data' según sea necesario
             self.components['Bollinger_Upper'] = bbands_result['BBU_20_2.0']
