@@ -12,6 +12,7 @@ numpy = "1.26.4"
 yfinance = "^0.2.40"
 pandas-ta = "^0.3.14b0"
 python-decouple = "^3.8"
+asyncpg = "^0.30.0"
 
 [build-system]
 requires = ["poetry-core"]
