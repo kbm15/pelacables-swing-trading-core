@@ -1,4 +1,4 @@
-from tradingcore import TimeSeriesData, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
+from tradingcore import TimeSeriesData, Backtester,AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
 import pika
 import time
 import logging
@@ -64,7 +64,17 @@ class IndicatorWorker:
                 
                 logging.debug(f'Starting backtest indicator {task_data['strategy']} on {task_data['ticker']}')
                 
-                result_data['total_return'] = self.run_backtest(ts, bs)
+                # Configure Backtester instance
+                backtester = Backtester(
+                    tsdata=ts,
+                    indicator=indicator,
+                    initial_capital=10000.0,
+                    purchase_fraction=task_data.get("purchase_fraction", 0.5),
+                    sell_fraction=task_data.get("sell_fraction", 0.5),
+                    take_profit=task_data.get("take_profit", 1.04)
+                )
+
+                result_data['total_return'] = backtester.run_backtest()
                 result_data['signal'] = None
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
@@ -102,52 +112,6 @@ class IndicatorWorker:
     def stop(self):
         self.channel.stop_consuming()
         self.connection.close()
-    
-
-    def run_backtest(self, ts, bs):
-        initial_capital= 10000.0
-        purchase_fraction = 0.5
-        sell_fraction = 0.5
-        take_profit = 1.04
-        backoff = 0
-        only_profit = True
-        
-
-        open= ts.data['Open'].tolist()[ 200 : ]
-        data= bs.tolist()[ 200 : ]
-
-        capital = initial_capital
-        holdings = 0.0
-
-        # Backtest logic here
-        max_holdings = holdings
-        price_bought = 0.0        
-        backoff_cnt = 0
-        for i in range(0, len(data)-1):            
-            if backoff and backoff_cnt: backoff_cnt-=1
-            if (capital > 0.0) and (data[i] == 1) and backoff_cnt == 0:  # Comprar
-                amount_to_spend = min(capital, max(initial_capital,capital) * purchase_fraction)
-                shares_bought = amount_to_spend / open[i+1]
-                if only_profit:
-                    price_bought = ((open[i+1] * shares_bought)+(price_bought*holdings))/(shares_bought+holdings)
-                holdings += shares_bought
-                capital -=  amount_to_spend
-                backoff_cnt = backoff
-                # Logica para vender fracciones
-                if  max_holdings < holdings:
-                    max_holdings = holdings
-            elif (holdings > 0.0) and (data[i] == -1) and (price_bought * take_profit) < open[i+1] and backoff_cnt == 0:  # Vender
-                shares_to_sell = min(holdings, max((max_holdings * sell_fraction),(initial_capital * purchase_fraction)))
-                holdings -= shares_to_sell
-                capital +=  shares_to_sell * open[i+1]
-                backoff_cnt = backoff
-                # Logica para vender fracciones
-                if  holdings == 0:
-                    max_holdings = holdings
-
-        final_portfolio_value = capital + holdings * open[i+1]
-        total_return = (final_portfolio_value - initial_capital) / initial_capital * 100
-        return total_return
 
 if __name__ == "__main__":
     instance_id = "instance_1"  # Example; you could auto-generate this or use environment variables
