@@ -46,6 +46,6 @@ class AwesomeOscillator:
         
         if self.strategy == 'SMA_Crossover':
             # Additional logic for SMA crossover strategy
-            self.components['AO_Signal'] = ao.apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+            self.components['AO_Signal'] = self.components['AO'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
 
         return self.components['AO_Signal']
