@@ -5,6 +5,20 @@ services:
     ports:
       - "5672:5672"  # RabbitMQ main port
       - "15672:15672"  # RabbitMQ management port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  scylla:
+    image: scylladb/scylla:latest
+    container_name: scylla
+    environment:
+      - SCYLLA_USER=scylla
+      - SCYLLA_PASSWORD=scylla
+    ports:
+      - "9042:9042"  # Cassandra default port for CQL
+    volumes:
+      - scylla_data:/var/lib/scylla
 
   telegram-app:
     build: ./telegram_app
@@ -27,3 +41,6 @@ services:
     depends_on:
       - rabbitmq
     restart: on-failure
+  
+volumes:
+  scylla_data:
