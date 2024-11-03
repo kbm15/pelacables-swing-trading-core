@@ -49,17 +49,13 @@ class IndicatorWorker:
             result_data['ticker'] = task_data['ticker']
             result_data['indicator'] = task_data['indicator']
             result_data['strategy'] = task_data['strategy']
-            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1h')
+            result_data['backtest'] = task_data['backtest']
+            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
             ts.update_data()
             indicator = globals()[task_data['indicator']]()
-            indicator.setStrategy(task_data['strategy'])
-            bs = indicator.calculate(ts.data)
-            if bs[-1] == 1:
-                result_data['signal'] = 'buy'
-            elif bs[-1] == -1:
-                result_data['signal'] = 'sell'
+            indicator.setStrategy(task_data['strategy'])            
 
-            if 'backtest' in task_data and task_data['backtest']:
+            if task_data['backtest']:
                 logging.info(f"[{self.instance_id}] Backtest task: {body}")
                 
                 logging.debug(f'Starting backtest indicator {task_data['strategy']} on {task_data['ticker']}')
@@ -69,16 +65,21 @@ class IndicatorWorker:
                     tsdata=ts,
                     indicator=indicator,
                     initial_capital=10000.0,
-                    purchase_fraction=task_data.get("purchase_fraction", 0.5),
-                    sell_fraction=task_data.get("sell_fraction", 0.5),
-                    take_profit=task_data.get("take_profit", 1.04)
+                    purchase_fraction=task_data.get("purchase_fraction", 1.0),
+                    sell_fraction=task_data.get("sell_fraction", 1.0),
+                    take_profit=task_data.get("take_profit", 1.00)
                 )
 
                 result_data['total_return'] = backtester.run_backtest()
-                result_data['signal'] = None
+                result_data['signal'] = backtester.get_signal()
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
+                bs = indicator.calculate(ts.data)
+                if bs[-1] == 1:
+                    result_data['signal'] = 'buy'
+                elif bs[-1] == -1:
+                    result_data['signal'] = 'sell'
                 logging.info(f"[{self.instance_id}] Indicator task: {body}")
             
             self.channel.basic_publish(
