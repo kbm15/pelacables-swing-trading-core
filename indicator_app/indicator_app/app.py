@@ -77,10 +77,12 @@ class IndicatorWorker:
             else:
                 bs = indicator.calculate(ts.data)
                 if bs[-1] == 1:
-                    result_data['signal'] = 'buy'
+                    result_data['signal'] = 'Buy'
                 elif bs[-1] == -1:
-                    result_data['signal'] = 'sell'
-                logging.info(f"[{self.instance_id}] Indicator task: {body}")
+                    result_data['signal'] = 'Sell'
+                else:
+                    result_data['signal'] = 'Hold'
+                logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
             
             self.channel.basic_publish(
                 exchange='',
@@ -93,7 +95,7 @@ class IndicatorWorker:
         time.sleep(1)
         # Acknowledge message processing
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        self.report_status()
+        # self.report_status()
 
     def report_status(self):
         # Report to coordinator (with queue depth or other relevant info)

@@ -64,8 +64,10 @@ class Backtester:
     def get_signal(self):
         if len(self.data) > 0 :
             if self.data[-1] == 1:
-                return 'buy'
+                return 'Buy'
             elif self.data[-1] == -1:
-                return 'sell'
+                return 'Sell'
+            else:
+                return 'Hold'
         else:
             return None
