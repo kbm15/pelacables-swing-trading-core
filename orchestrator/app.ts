@@ -152,13 +152,51 @@ async function runDatabase() {
         }
     }
 
+    
+
     await cluster.shutdown();
+}
+
+// Function to insert indicators and strategies
+async function insertIndicators(client: cassandra.Client) {
+    for (const [name, strategies] of Object.entries(INDICATORS_STRATEGIES)) {
+        for (const strategy of strategies) {
+            const configurations = ''; // Store strategies as JSON
+
+            const query = `INSERT INTO ${SCYLLA_KEYSPACE}.Indicator (indicator_id, name, description, strategy, configurations, created_at, updated_at)
+                           VALUES (uuid(), ?, ?, ?, ?, toTimestamp(now()), toTimestamp(now()))`;
+
+            try {
+                await client.execute(query, [ name, `${name} indicator`, strategy, configurations], { prepare: true });
+                console.log(`Inserted indicator: ${name} with strategy: ${strategy}`);
+            } catch (error) {
+                console.error(`Failed to insert indicator: ${name} with strategy: ${strategy}`);
+                console.error(error);
+            }
+        }
+    }
+}
+
+async function countIndicators(cluster: cassandra.Client): Promise<number> {
+    const query = `SELECT COUNT(*) FROM ${SCYLLA_KEYSPACE}.Indicator`;
+    
+    try {
+        const result = await cluster.execute(query, [], { prepare: true });
+        
+        // Check the count to determine if the table is populated
+        const count = result.rows[0]['count'];
+        return count;
+    } catch (error) {
+        console.error("Error checking if Indicator table is populated:", error);
+        return 0;
+    }
 }
 
 // Function to get indicator details (name and strategy) by indicator_id
 async function getIndicatorDetailsById(indicator_id: string, cluster: cassandra.Client) {
+    console.log(`Getting indicator details for ID: ${indicator_id}`);
     const query = `
-        SELECT name, strategy FROM ${SCYLLA_KEYSPACE}.Indicator WHERE indicator_id = ?
+        SELECT name, strategy FROM ${SCYLLA_KEYSPACE}.Indicator WHERE indicator_id = ? ALLOW FILTERING
     `;
     const result = await cluster.execute(query, [indicator_id], { prepare: true });
     
@@ -173,8 +211,9 @@ async function getIndicatorDetailsById(indicator_id: string, cluster: cassandra.
 
 // Function to get indicator_id by name and strategy
 async function getIndicatorIdByNameAndStrategy(name: string, strategy: string, cluster: cassandra.Client) {
+    console.log(`Getting indicator ID for name: ${name} and strategy: ${strategy}`);
     const query = `
-        SELECT indicator_id FROM ${SCYLLA_KEYSPACE}.Indicator WHERE name = ? AND strategy = ?
+        SELECT indicator_id FROM ${SCYLLA_KEYSPACE}.Indicator WHERE name = ? AND strategy = ? ALLOW FILTERING
     `;
     const result = await cluster.execute(query, [name, strategy], { prepare: true });
     
@@ -242,12 +281,14 @@ async function recordOperation(ticker: string, operationType: string, indicator:
 
 // Function to get the last non-'None' operation for a given ticker
 async function getLastOperation(ticker: string, cluster: cassandra.Client) {
+    console.log(`Getting last operation for ticker: ${ticker}`);
     const query = `
         SELECT * FROM Operations 
         WHERE ticker = ? 
-        AND operation != 'None'
+        AND operation IN ('Buy', 'Sell')
         ORDER BY timestamp DESC 
         LIMIT 1
+        ALLOW FILTERING
     `;
     const result = await cluster.execute(query, [ticker], { prepare: true });
     return result.rows[0] || null;
@@ -260,8 +301,7 @@ async function sendRequest(channel: amqp.Channel, request: Request) {
     console.log(`Sending request for ticker ${request.ticker}, indicator ${request.indicator}, strategy ${request.strategy} to TASK_QUEUE.`);
     await channel.publish(TASK_QUEUE, APP_INSTANCE_QUEUE, Buffer.from(JSON.stringify(request)), {
         persistent: true,
-    });
-    pendingRequests.push(request);
+    });    
 }
 
 interface Request {
@@ -310,6 +350,7 @@ async function handleResponse(channel: amqp.Channel, message: amqp.Message, clus
                 (current.total_return || 0) > (best.total_return || 0) ? current : best
             );
 
+            console.log('Best response:', bestResponse);
             await saveBestIndicator(bestResponse, cluster);
             await answerPendingRequests(channel, bestResponse);
             delete responseAggregator[response.ticker];
@@ -347,6 +388,13 @@ async function main() {
         keyspace: SCYLLA_KEYSPACE,
         credentials: { username: SCYLLA_USERNAME, password: SCYLLA_PASSWORD }
     });    
+    console.log("Connected to Cassandra database");
+
+    if (await countIndicators(cluster) == 0) {
+        console.log("Initializing indicators table");
+        await insertIndicators(cluster);
+    }
+
     const connection = await amqp.connect(RABBITMQ_HOST);
     const channel = await connection.createChannel();
 
@@ -378,6 +426,8 @@ async function main() {
                             await sendRequest(channel, request);
                         }
                     }
+                    const request: Request = { ticker, indicator: 'None', strategy: 'None', backtest: true, userId, chatId };
+                    pendingRequests.push(request);
                 } else {
                     console.log(`Already aggregating responses for ${ticker}, skipping request.`);
                 }
@@ -390,13 +440,11 @@ async function main() {
                     console.log(`Last valid operation for ${ticker}: ${lastOperation.operation} with indicator ${lastOperation.indicator} on ${lastOperation.timestamp}.`);
                     const indicatorDetails = await getIndicatorDetailsById(lastOperation.indicator, cluster);
                     const response = JSON.stringify({ 
-                        ...bestIndicator, 
-                        lastOperation: {
-                            operation: lastOperation.operation,
-                            indicatorName: indicatorDetails?.name,
-                            indicatorStrategy: indicatorDetails?.strategy,
-                            timestamp: lastOperation.timestamp
-                        },
+                        ticker: ticker,
+                        indicator: indicatorDetails?.name,
+                        strategy: indicatorDetails?.strategy,
+                        signal: lastOperation.operation,
+                        timestamp: lastOperation.timestamp,
                         chatId,
                         userId 
                     });

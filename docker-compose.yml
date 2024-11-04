@@ -32,6 +32,26 @@ services:
     depends_on:
       - rabbitmq
     restart: on-failure
+  
+  orchestrator:
+    build: ./orchestrator
+    container_name: orchestrator
+    environment:
+      RABBITMQ_HOST: amqp://rabbitmq
+      TICKER_REQUEST_QUEUE: ticker_requests
+      TICKER_RESPONSE_QUEUE: ticker_responses
+      TASK_QUEUE: indicator_tasks
+      RESULTS_QUEUE: indicator_results 
+      NOTIFICATION_QUEUE: indicator_notifications
+      SCYLLA_HOST: scylla
+      SCYLLA_KEYSPACE: production_keyspace
+      SCYLLA_DATACENTER: datacenter1
+      SCYLLA_USERNAME: scylla
+      SCYLLA_PASSWORD: scylla
+    depends_on:
+      - scylla
+      - rabbitmq
+    restart: on-failure
 
   indicator-app:
     build: ./indicator_app
