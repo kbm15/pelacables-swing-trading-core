@@ -25,7 +25,7 @@ let channel: amqplib.Channel;
 
 // Connect to RabbitMQ
 async function connectRabbitMQ() {
-    try {
+    try {        
         const connection = await amqplib.connect(RABBITMQ_HOST);
         channel = await connection.createChannel();
 
@@ -40,6 +40,7 @@ async function connectRabbitMQ() {
         console.log("Connected to RabbitMQ and queues initialized.");
     } catch (error) {
         console.error("Failed to connect to RabbitMQ:", error);
+        process.exit(1);
     }
 }
 connectRabbitMQ().catch(console.error);
@@ -119,11 +120,16 @@ bot.start((ctx) => {
 
 bot.command('ticker', async (ctx) => {
     const ticker = ctx.message.text.split(' ')[1];
-    if (!ticker) {
+    if (!ticker || ticker.length > 4) {
         return ctx.reply("Por favor proporciona el ticker. Ejemplo: /ticker AAPL");
     }
 
     const chatId = ctx.message.chat.type === 'private' ? undefined : ctx.message.chat.id;
+    const userId = ctx.from.id;
+    if (userId === undefined || ticker === undefined) {
+        return ctx.reply("Error en la solicitud. Por favor intenta de nuevo.");        
+    }
+    console.log(`User ${userId} requested ticker: ${ticker.toUpperCase()}, chatId: ${chatId}`);
     await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), chatId);
     ctx.reply(`Solicitud enviada para ${ticker.toUpperCase()}. Recibirás la información en breve.`);
 });

@@ -364,7 +364,9 @@ async function handleResponse(channel: amqp.Channel, message: amqp.Message, clus
 
 async function answerPendingRequests(channel: amqp.Channel, response: Response) {
 
-    for (const request of pendingRequests) {
+    const processingRequests = [...pendingRequests];
+    pendingRequests.splice(0, pendingRequests.length);
+    for (const request of processingRequests) {
         const message = JSON.stringify({
             userId: request.userId,
             ticker: response.ticker,
