@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Backtester:
-    def __init__(self, tsdata: TimeSeriesData, indicator: BaseIndicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5,days: int = 180, take_profit: float = 1.04):
+    def __init__(self, tsdata: TimeSeriesData, indicator: BaseIndicator, initial_capital: float = 10000.0, purchase_fraction: float = 0.5, sell_fraction: float = 0.5,days: int = 182, take_profit: float = 1.04):
         self.tsdata = tsdata
         self.indicator = indicator
         self.initial_capital = initial_capital
