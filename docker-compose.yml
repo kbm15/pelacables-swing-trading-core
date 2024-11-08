@@ -24,7 +24,7 @@ services:
     build: ./telegram_app
     container_name: telegram-app
     environment:
-      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      TELEGRAM_TOKEN: 8094888702:AAGGH0aPKNo7HOpHf93E8HMeigNWtO6Er1Q
       RABBITMQ_HOST: amqp://rabbitmq
       TICKER_REQUEST_QUEUE: ticker_requests
       TICKER_RESPONSE_QUEUE: ticker_responses
@@ -58,6 +58,8 @@ services:
     container_name: indicator-app
     environment:
       RABBITMQ_HOST: rabbitmq
+      TASK_QUEUE: indicator_tasks
+      RESULTS_QUEUE: indicator_results
     depends_on:
       - rabbitmq
     restart: on-failure
