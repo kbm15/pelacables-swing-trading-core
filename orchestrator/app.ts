@@ -454,7 +454,12 @@ async function main() {
                     await channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(response), { persistent: false });
                 } else {
                     // No recent operation found, send only best indicator details
-                    const response = JSON.stringify({ ...bestIndicator, chatId, userId });
+                    const response = JSON.stringify({
+                        ticker: ticker,
+                        indicator: bestIndicator.name,
+                        strategy: bestIndicator.strategy,
+                        chatId,
+                        userId });
                     await channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(response), { persistent: false });
                 }
             }
