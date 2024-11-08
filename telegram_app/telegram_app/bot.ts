@@ -1,4 +1,5 @@
 import { Telegraf } from 'telegraf';
+import {doesTickerExist} from './utils/checkTicker';
 import amqplib from 'amqplib';
 
 // Load environment variables with required check
@@ -120,9 +121,12 @@ bot.start((ctx) => {
 
 bot.command('ticker', async (ctx) => {
     const ticker = ctx.message.text.split(' ')[1];
-    if (!ticker || ticker.length > 4) {
+    if (!ticker) {
         return ctx.reply("Por favor proporciona el ticker. Ejemplo: /ticker AAPL");
+    } else if (!await doesTickerExist(ticker)) {
+        return ctx.reply("El ticker proporcionado no existe.");
     }
+
 
     const chatId = ctx.message.chat.type === 'private' ? undefined : ctx.message.chat.id;
     const userId = ctx.from.id;
