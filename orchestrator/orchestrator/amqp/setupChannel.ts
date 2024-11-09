@@ -9,5 +9,7 @@ export async function setupChannel() {
     await channel.assertQueue(TICKER_RESPONSE_QUEUE, { durable: true });
     await channel.assertQueue(RESULTS_QUEUE, { durable: true });
     await channel.assertExchange(TASK_QUEUE, 'direct', { durable: false });
+    console.log(`Connected to RabbitMQ and asserted queues: ${TICKER_REQUEST_QUEUE}, ${TICKER_RESPONSE_QUEUE}, ${RESULTS_QUEUE}.`);
+
     return channel;
 }

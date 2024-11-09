@@ -9,16 +9,17 @@ services:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
 
-  scylla:
-    image: scylladb/scylla:latest
-    container_name: scylla
+  postgres:
+    image: postgres:latest
+    container_name: postgres
     environment:
-      - SCYLLA_USER=scylla
-      - SCYLLA_PASSWORD=scylla
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=production_db
     ports:
-      - "9042:9042"  # Cassandra default port for CQL
+      - "5432:5432"  # Cassandra default port for CQL
     volumes:
-      - scylla_data:/var/lib/scylla
+      - postgres-data:/var/lib/postgresql/data
 
   telegram-app:
     build: ./telegram_app
@@ -43,13 +44,12 @@ services:
       TASK_QUEUE: indicator_tasks
       RESULTS_QUEUE: indicator_results 
       NOTIFICATION_QUEUE: indicator_notifications
-      SCYLLA_HOST: scylla
-      SCYLLA_KEYSPACE: production_keyspace
-      SCYLLA_DATACENTER: datacenter1
-      SCYLLA_USERNAME: scylla
-      SCYLLA_PASSWORD: scylla
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: production_db
     depends_on:
-      - scylla
+      - postgres
       - rabbitmq
     restart: on-failure
 
@@ -63,4 +63,4 @@ services:
     restart: on-failure
   
 volumes:
-  scylla_data:
+  postgres-data:
