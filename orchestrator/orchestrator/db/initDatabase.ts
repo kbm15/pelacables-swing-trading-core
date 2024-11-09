@@ -1,27 +1,31 @@
 // src/db/initDatabase.ts
 import { Client as PostgresClient } from 'pg';
-import { POSTGRES_HOST, POSTGRES_DB, POSTGRES_USERNAME, POSTGRES_PASSWORD } from '../config';
+import { POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD } from '../config';
 
 export async function initDatabase() {
     const client = new PostgresClient({
         host: POSTGRES_HOST,
-        user: POSTGRES_USERNAME,
+        user: POSTGRES_USER,
         password: POSTGRES_PASSWORD,
-        database: POSTGRES_DB,
+        database: 'postgres',
     });
-    await client.connect();
+    
     try {
+        await client.connect();
         await client.query(`CREATE DATABASE ${POSTGRES_DB}`);
         console.log(`Initialized PostgreSQL database ${POSTGRES_DB}`);
+        await client.end();
     } catch (error: any) {
         if (error.code === '42P04') {
             // Database already exists
             console.log(`PostgreSQL database ${POSTGRES_DB} already exists`);
         } else {
             console.error('Failed to create PostgreSQL database:', error);
+            console.log('Username:', POSTGRES_USER);
+            process.exit(1);
         }
     }
-    await client.end();
+    
 }
 
 

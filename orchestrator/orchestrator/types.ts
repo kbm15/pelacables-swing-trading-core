@@ -13,7 +13,7 @@ export interface Response {
     strategy: string;
     backtest: boolean;
     signal: string;
-    total_return: number | null;
+    total_return: number;
     chatId: number | null;
 }
 
@@ -23,6 +23,25 @@ export interface Operation {
     indicator: string;
     strategy: string;
     timestamp: Date;
+}
+
+export interface Indicator {
+    indicatorId: string;
+    name: string;
+    description: string;
+    strategy: string;
+    configurations: Record<string, any>;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface TickerIndicator {
+    ticker: string;
+    name: string;
+    strategy: string;
+    total_return: number;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export interface TickerResponseAggregator {

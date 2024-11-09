@@ -1,11 +1,11 @@
 // src/db/runDatabase.ts
 import { Client as PostgresClient } from 'pg';
-import { POSTGRES_HOST, POSTGRES_DB, POSTGRES_USERNAME, POSTGRES_PASSWORD } from '../config';
+import { POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD } from '../config';
 
 export async function runDatabase() {
     const client = new PostgresClient({
         host: POSTGRES_HOST,
-        user: POSTGRES_USERNAME,
+        user: POSTGRES_USER,
         password: POSTGRES_PASSWORD,
         database: POSTGRES_DB,
     });
@@ -34,7 +34,7 @@ export async function runDatabase() {
         )`,
     
         // Indicator table
-        `CREATE TABLE IF NOT EXISTS Indicator (
+        `CREATE TABLE IF NOT EXISTS Indicators (
             indicator_id UUID PRIMARY KEY,
             name TEXT,
             description TEXT,
@@ -45,9 +45,9 @@ export async function runDatabase() {
         )`,
     
         // Ticker Indicator table
-        `CREATE TABLE IF NOT EXISTS TickerIndicator (
+        `CREATE TABLE IF NOT EXISTS TickerIndicators (
             ticker TEXT PRIMARY KEY,
-            indicator_id UUID REFERENCES Indicator(indicator_id) ON DELETE CASCADE,
+            indicator_id UUID REFERENCES Indicators(indicator_id) ON DELETE CASCADE,
             total_return FLOAT,
             created_at TIMESTAMPTZ,
             updated_at TIMESTAMPTZ
@@ -56,7 +56,7 @@ export async function runDatabase() {
         // Messages table
         `CREATE TABLE IF NOT EXISTS Messages (
             message_id UUID PRIMARY KEY,
-            indicator_id UUID REFERENCES Indicator(indicator_id) ON DELETE CASCADE,
+            indicator_id UUID REFERENCES Indicators(indicator_id) ON DELETE CASCADE,
             user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
             message_content TEXT,
             message_type TEXT,
@@ -76,9 +76,17 @@ export async function runDatabase() {
         `CREATE TABLE IF NOT EXISTS Operations (
             ticker TEXT,
             operation TEXT,
-            indicator UUID REFERENCES Indicator(indicator_id) ON DELETE CASCADE,
+            indicator UUID REFERENCES Indicators(indicator_id) ON DELETE CASCADE,
             timestamp TIMESTAMPTZ,
             PRIMARY KEY (ticker, timestamp)
+        )`,
+        
+        // Last Operation table
+        `CREATE TABLE IF NOT EXISTS LastOperations (
+            ticker TEXT PRIMARY KEY,
+            operation TEXT,
+            indicator UUID REFERENCES Indicators(indicator_id) ON DELETE CASCADE,
+            timestamp TIMESTAMPTZ
         )`
     ];
     
@@ -86,7 +94,6 @@ export async function runDatabase() {
     for (const query of queries) {
         try {
             await client.query(query);
-            console.log(`Table created with query: ${query}`);
         } catch (error) {
             console.error(`Failed to create table:`, error);
         }

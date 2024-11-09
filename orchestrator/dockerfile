@@ -19,7 +19,8 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 # then copy all (non-ignored) project files into the image
 FROM base AS prerelease
 COPY --from=install /temp/dev/node_modules node_modules
-COPY . .
+COPY bun.lockb package.json tsconfig.json ./
+COPY orchestrator ./
 
 # Set environment variables for RabbitMQ and Telegram bot
 # These are defaults; they should be overridden by Docker Compose or directly in the Docker run command
@@ -31,9 +32,11 @@ ENV NOTIFICATION_QUEUE=indicator_notifications
 # copy production dependencies and source code into final image
 FROM base AS release
 COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/app/app.ts .
+COPY --from=prerelease /usr/src/app/orchestrator.ts /usr/src/app/config.ts /usr/src/app/types.ts ./
 COPY --from=prerelease /usr/src/app/package.json .
+COPY --from=prerelease /usr/src/app/amqp ./amqp
+COPY --from=prerelease /usr/src/app/db ./db
 
 # run the app
 USER bun
-ENTRYPOINT [ "bun", "run", "app.ts" ]
+ENTRYPOINT [ "bun", "run", "orchestrator.ts" ]

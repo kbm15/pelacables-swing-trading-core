@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "@types/amqplib": "^0.10.5",
+    "@types/luxon": "^3.4.2",
     "@types/pg": "^8.11.10",
     "amqplib": "^0.10.4",
     "cassandra-driver": "^4.7.2",
+    "luxon": "^3.5.0",
     "mariadb": "^3.4.0",
     "pg": "^8.13.1",
     "sqlite": "^5.1.1",

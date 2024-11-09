@@ -57,6 +57,7 @@ async function sendTickerRequest(userId: number, ticker: string, chatId?: number
 async function consumeTickerResponses() {
     channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
         if (msg) {
+            console.log(`Received ticker response: ${msg.content.toString()}`);
             const response = JSON.parse(msg.content.toString());
 
             for (const key in response) {
@@ -67,6 +68,7 @@ async function consumeTickerResponses() {
                 }
                 continue;
             }
+            
             const { userId, ticker, indicator, strategy, signal, total_return, chatId } = response;
 
             // Compose a detailed message for the response
