@@ -28,13 +28,8 @@ class IndicatorWorker:
         self.coordinator_url = coordinator_url
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=TASK_QUEUE, exchange_type='direct')
+        self.channel.queue_declare(queue=TASK_QUEUE, durable=True)
         self.channel.queue_declare(queue=RESULTS_QUEUE, durable=True)
-
-        # Declare a unique queue for this instance
-        self.queue_name = f"app_instance_queue_{instance_id}"
-        self.channel.queue_declare(queue=self.queue_name, exclusive=True)
-        self.channel.queue_bind(exchange=TASK_QUEUE, queue=self.queue_name)
 
         # Set QoS for load balancing
         self.channel.basic_qos(prefetch_count=1)
@@ -102,13 +97,13 @@ class IndicatorWorker:
         try:
             requests.post(f"{self.coordinator_url}/update_status", json={
                 "instance_id": self.instance_id,
-                "queue_depth": self.channel.queue_declare(queue=self.queue_name, passive=True).method.message_count
+                "queue_depth": self.channel.queue_declare(queue=TASK_QUEUE, passive=True).method.message_count
             })
         except Exception as e:
             logging.error(f"Failed to report status: {e}")
 
     def start_consuming(self):
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.process_task)
+        self.channel.basic_consume(queue=TASK_QUEUE, on_message_callback=self.process_task)
         logging.info(f"[{self.instance_id}] Waiting for tasks...")
         self.channel.start_consuming()
 
