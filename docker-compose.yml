@@ -58,6 +58,8 @@ services:
     container_name: indicator-app
     environment:
       RABBITMQ_HOST: rabbitmq
+      TASK_QUEUE: indicator_tasks
+      RESULTS_QUEUE: indicator_results
     depends_on:
       - rabbitmq
     restart: on-failure

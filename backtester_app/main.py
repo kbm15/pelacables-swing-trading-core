@@ -122,7 +122,7 @@ class IndicatorWorker:
         return result_data
 
 def main():
-    ticker = 'AAPL'  # Single ticker for testing
+    ticker = 'ACS'  # Single ticker for testing
     indicators_strategies_path = "indicators_strategies.json"
     
     # Load TimeSeriesData once and share it across tasks

@@ -4,16 +4,12 @@ import time
 import logging
 import json
 import requests  # For signaling the coordinator
-from decouple import config,UndefinedValueError
+import os
 
-try:
-    RABBITMQ_HOST = config('RABBITMQ_HOST')
-    TASK_QUEUE = config('TASK_QUEUE')
-    RESULTS_QUEUE = config('RESULTS_QUEUE')
-except UndefinedValueError as e:
-    # Handle the case where a variable is not defined in .env
-    print(f"Error: {e}")
-    exit(1)
+
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST')
+TASK_QUEUE = os.getenv('TASK_QUEUE')
+RESULTS_QUEUE = os.getenv('RESULTS_QUEUE')
 
 print("Configuration Loaded:")
 print(f"RABBITMQ_HOST = {RABBITMQ_HOST}")
