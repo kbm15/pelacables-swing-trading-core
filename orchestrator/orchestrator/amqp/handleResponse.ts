@@ -36,7 +36,9 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                             createdAt: new Date(),
                             updatedAt: new Date() 
                         };
+                        const operation: Operation = { ticker: response.ticker, operation: bestResponse.signal, indicator: bestResponse.indicator, strategy: bestResponse.strategy, timestamp: new Date() };                        
                         await saveBestIndicator(tickerIndicator, client);
+                        await recordLastOperation(operation, client);
                         await answerPendingRequests(channel, bestResponse);
                         delete responseAggregator[response.ticker];
                     }
