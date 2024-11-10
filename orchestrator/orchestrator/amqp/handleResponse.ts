@@ -1,7 +1,7 @@
 // handleResponse.ts
 import type { Channel } from 'amqplib';
 import { Client as PostgresClient } from 'pg';
-import { countIndicators, saveBestIndicator } from '../db/indicatorQueries'
+import { countIndicators, getBestIndicator, saveBestIndicator } from '../db/indicatorQueries'
 import { recordLastOperation } from '../db/operationsQueries';
 import { answerPendingRequests } from './handleRequest';
 import type { Operation, Response, ResponseAggregator, TickerIndicator } from '../types';
@@ -46,17 +46,24 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                     console.error(`Not aggregating responses for ${response.ticker} but received request.`)
                 }
             } else {
-                const operation: Operation = { ticker: response.ticker, operation: response.signal, indicator: response.indicator, strategy: response.strategy, timestamp: new Date() };
-                const tickerIndicator: TickerIndicator = { 
-                    ticker: response.ticker, 
-                    name: response.indicator, 
-                    strategy: response.strategy, 
-                    total_return: response.total_return, 
-                    createdAt: new Date(), 
-                    updatedAt: new Date() };
-                await saveBestIndicator(tickerIndicator, client);
+                const operation: Operation = { ticker: response.ticker, operation: response.signal, indicator: response.indicator, strategy: response.strategy, timestamp: new Date() };                                
                 await recordLastOperation(operation, client);
-                await answerPendingRequests(channel, response);
+                const bestIndicator = await getBestIndicator(response.ticker, client);
+                if (bestIndicator) {
+                    const responseReturn : Response = { 
+                        ticker: response.ticker,
+                        indicator: response.indicator,
+                        strategy: response.strategy,
+                        backtest: false,
+                        signal: response.signal,
+                        total_return: bestIndicator.total_return,
+                        chatId: response.chatId
+                    }; 
+                    await answerPendingRequests(channel, responseReturn);
+                } else {
+                    await answerPendingRequests(channel, response);
+                }
+                
             }
             channel.ack(msg);
         }
