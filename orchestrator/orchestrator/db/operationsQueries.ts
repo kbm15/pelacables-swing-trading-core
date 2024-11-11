@@ -29,6 +29,11 @@ export async function recordLastOperation(operation: Operation, client: Postgres
     const query = `
         INSERT INTO LastOperations ( ticker, operation, indicator, timestamp)
         VALUES ($1, $2, (SELECT indicator_id FROM Indicators WHERE name = $3 AND strategy = $4), $5)
+        ON CONFLICT (ticker)
+        DO UPDATE SET
+            operation = EXCLUDED.operation,
+            indicator = EXCLUDED.indicator,
+            timestamp = EXCLUDED.timestamp;
     `;
 
 
