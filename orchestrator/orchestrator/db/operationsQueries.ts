@@ -49,7 +49,7 @@ export async function recordLastOperation(operation: Operation, client: Postgres
     if(operation.operation === 'Buy' || operation.operation === 'Sell'){
         await recordOperation(operation, client);        
     }
-    console.log(`Recorded operation for ticker ${operation.ticker}: ${operation.operation}.`);
+    console.log(`Recorded last operation for ticker ${operation.ticker}: ${operation.operation}.`);
 
 }
 

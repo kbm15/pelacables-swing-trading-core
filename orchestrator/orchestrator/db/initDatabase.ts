@@ -19,6 +19,7 @@ export async function initDatabase() {
         if (error.code === '42P04') {
             // Database already exists
             console.log(`PostgreSQL database ${POSTGRES_DB} already exists`);
+            await client.end();
         } else {
             console.error('Failed to create PostgreSQL database:', error);
             console.log('Username:', POSTGRES_USER);
