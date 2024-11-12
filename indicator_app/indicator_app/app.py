@@ -35,12 +35,13 @@ class IndicatorWorker:
         # Process the task 
         task_data = json.loads(body.decode('utf-8'))
 
-        result_data = {}
+        result_data = {
+        "flag": "",
+        "ticker": task_data.get("ticker", ""),
+        "signals": {}
+        }
         if 'ticker' in task_data and 'indicator' in task_data and 'strategy' in task_data:
-            result_data['ticker'] = task_data['ticker']
-            result_data['indicator'] = task_data['indicator']
-            result_data['strategy'] = task_data['strategy']
-            result_data['backtest'] = task_data['backtest']
+
             ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
             ts.update_data()
             indicator = globals()[task_data['indicator']]()
@@ -61,18 +62,30 @@ class IndicatorWorker:
                     take_profit=task_data.get("take_profit", 1.00)
                 )
 
-                result_data['total_return'] = backtester.run_backtest()
-                result_data['signal'] = backtester.get_signal()
+                backtester.run_backtest()
+                raw_signals = backtester.get_signal()  # Signal values as list or array
+                timestamps = backtester.tsdata['timestamp']  # Timestamps for each signal
+
+                for i, timestamp in enumerate(timestamps):
+                    epoch = int(timestamp.timestamp())  # Convert to epoch
+                    result_data['signals'][epoch] = raw_signals[i]
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
                 bs = indicator.calculate(ts.data)
-                if bs[-1] == 1:
-                    result_data['signal'] = 'Buy'
-                elif bs[-1] == -1:
-                    result_data['signal'] = 'Sell'
-                else:
-                    result_data['signal'] = 'Hold'
+
+                for i, timestamp in enumerate(ts.data['timestamp']):
+                    epoch = int(timestamp.timestamp())  # Convert to epoch
+                    signal = bs[i]
+
+                    if signal == 1:
+                        result_data['signals'][epoch] = "Buy"
+                    elif signal == -1:
+                        result_data['signals'][epoch] = "Sell"
+                    else:
+                        result_data['signals'][epoch] = "Hold"
+
+                
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
             
             self.channel.basic_publish(
