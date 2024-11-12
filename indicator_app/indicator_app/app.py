@@ -64,18 +64,18 @@ class IndicatorWorker:
 
                 backtester.run_backtest()
                 raw_signals = backtester.get_signal()  # Signal values as list or array
-                timestamps = backtester.tsdata['timestamp']  # Timestamps for each signal
+                timestamps = backtester.tsdata.index  # Timestamps for each signal
 
                 for i, timestamp in enumerate(timestamps):
-                    epoch = int(timestamp.timestamp())  # Convert to epoch
+                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
                     result_data['signals'][epoch] = raw_signals[i]
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
                 bs = indicator.calculate(ts.data)
 
-                for i, timestamp in enumerate(ts.data['timestamp']):
-                    epoch = int(timestamp.timestamp())  # Convert to epoch
+                for i, timestamp in enumerate(ts.data.index):
+                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
                     signal = bs[i]
 
                     if signal == 1:
