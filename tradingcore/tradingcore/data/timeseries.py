@@ -4,6 +4,7 @@ import pickle
 from datetime import datetime, timedelta, timezone
 import logging
 from tradingcore.utils.yahoo_finance import fetch_yahoo_finance_data
+from tradingcore.utils.postgresql import init_database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,13 +12,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class TimeSeriesData:
     ALLOWED_INTERVALS = {'1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d'}
 
-    def __init__(self, ticker: str, interval: str, cache_dir: str = 'cache'):
+    def __init__(self, ticker: str, interval: str):
+
+        # Initialize postgresql database
+        init_database()
+
         self.ticker = ticker
         if interval not in self.ALLOWED_INTERVALS:
             raise ValueError(f"Interval '{interval}' is not allowed. Allowed values are: {', '.join(self.ALLOWED_INTERVALS)}")
         self.interval = interval
         self.period = self.calc_period()
-        self.cache_dir = cache_dir
         self.data = self.load_data().drop_duplicates(subset=['Open'], keep='first')
 
     def load_data(self):
