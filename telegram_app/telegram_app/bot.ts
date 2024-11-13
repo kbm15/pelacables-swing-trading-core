@@ -1,187 +1,142 @@
-import { Telegraf } from 'telegraf';
-import {doesTickerExist} from './utils/checkTicker';
-import amqplib from 'amqplib';
+import { Telegraf, Markup } from 'telegraf';
+import { message } from 'telegraf/filters'
+import type { Channel } from 'amqplib';
+import { findTicker } from './utils/checkTicker';
+
+import { connectRabbitMQ } from './amqp/setupChannel';
+import { sendNotificationRequest, consumeNotifications } from './amqp/handleNotification';
+import { sendTickerRequest, consumeTickerResponses } from './amqp/handleTicker';
+
+
+import { loadEnvVariable } from './utils/loadEnv';
 
 // Load environment variables with required check
-function loadEnvVariable(name: string): string {
-    const value = process.env[name];
-    if (!value) {
-        console.error(`Environment variable ${name} is missing.`);
-        process.exit(1);
-    }
-    return value;
-}
-
-// Load and validate necessary environment variables
 const TELEGRAM_TOKEN = loadEnvVariable('TELEGRAM_TOKEN');
-const RABBITMQ_HOST = loadEnvVariable('RABBITMQ_HOST');
-const TICKER_REQUEST_QUEUE = loadEnvVariable('TICKER_REQUEST_QUEUE');
-const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
-const NOTIFICATION_QUEUE = loadEnvVariable('NOTIFICATION_QUEUE');
 
-// Initialize Telegraf with the Telegram token
-const bot = new Telegraf(TELEGRAM_TOKEN);
+async function registerBotActions(bot: Telegraf, channel: Channel) {    
+    const menu = {
+        inline_keyboard: [
+            [
+                { text: '📈 Solicitar Estrategia de Ticker', callback_data:'CHECK_TICKER'},
+                { text:'📋 Ver Lista de Suscripciones', callback_data:'SUBSCRIPTION_LIST'},
+                { text:'❓ Ayuda del Bot', callback_data: 'BOT_HELP'}
+            ],
+        ],
+    };
+    const helpMessage = `
+        Este 🤖 ofrece señales de compra/venta en el mercado de valores en base a un análisis diario.
 
-let channel: amqplib.Channel;
+        **Funciones:**
+        - **Estrategia de Ticker**: Analiza un ticker y recibe una estrategia recomendada. Puedes suscribirte para recibir actualizaciones.
+        - **Lista de Suscripciones**: Gestiona tus suscripciones de tickers.
+        
+        **Interpretación de las señales**:
+        Las señales de compra indican una posible tendencia al alza, mientras que las señales de venta sugieren una posible tendencia a la baja. Usa estas señales a tu discreción.
 
-// Connect to RabbitMQ
-async function connectRabbitMQ() {
-    try {        
-        const connection = await amqplib.connect(RABBITMQ_HOST);
-        channel = await connection.createChannel();
+        Para un análisis más detallado, abre el ticker en la web.
+        `;
+    bot.start((ctx) => {
+        console.log(`El usuario inició el bot: ${ctx.from.id}`);
+        return ctx.reply(`¡Bienvenido! ${helpMessage} Elige una opción:`, {parse_mode: "Markdown", reply_markup: menu});    
+    });
 
-        // Ensure queues exist
-        await channel.assertQueue(TICKER_REQUEST_QUEUE, { durable: true });
-        await channel.assertQueue(TICKER_RESPONSE_QUEUE, { durable: true });
-        await channel.assertQueue(NOTIFICATION_QUEUE, { durable: true });
+    bot.action('MAIN_MENU', (ctx) => {
+        return ctx.reply('Elige una opción:', {reply_markup: menu});    
+    });
 
-        // Start consumers
-        consumeTickerResponses();
-        consumeNotifications();
-        console.log("Connected to RabbitMQ and queues initialized.");
-    } catch (error) {
-        console.error("Failed to connect to RabbitMQ:", error);
-        process.exit(1);
-    }
-}
-connectRabbitMQ().catch(console.error);
+    bot.action('CHECK_TICKER', (ctx) => {
+        ctx.reply('Por favor, ingresa el símbolo del ticker que deseas analizar:', Markup.forceReply());
+        bot.on(message('text'), async (ctx) => {
+            console.log(`Usuario ingresó ticker: ${ctx.message.text}`);
+            const ticker = ctx.message.text.toUpperCase();
+            const tickerRegex = /^[A-Za-z]+$/;
 
-// Send a ticker request to the queue
-async function sendTickerRequest(userId: number, ticker: string, chatId?: number) {
-    const message = JSON.stringify({ userId, ticker, chatId: chatId || null });
-    channel.sendToQueue(TICKER_REQUEST_QUEUE, Buffer.from(message), { persistent: true });
-    console.log(`Ticker request sent: ${ticker} for userId: ${userId}, chatId: ${chatId}`);
-}
-
-// Consumer for ticker responses
-async function consumeTickerResponses() {
-    channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
-        if (msg) {
-            console.log(`Received ticker response: ${msg.content.toString()}`);
-            const response = JSON.parse(msg.content.toString());
-
-            for (const key in response) {
-                if (response[key] === undefined) {
-                    console.log(`Undefined key in response: ${key}`);
-                    channel.ack(msg);
-                    return;
-                }
-                continue;
-            }
-            
-            const { userId, ticker, indicator, strategy, signal, total_return, chatId } = response;
-
-            // Compose a detailed message for the response
-            let responseMessage = `📈 Información para *${ticker}*\n`;
-            responseMessage += `• Indicador: *${indicator}*\n`;
-            responseMessage += `• Estrategia: *${strategy}*\n`;
-            responseMessage += `• Señal: ${signal ? `*${signal}*` : 'Sin señal'}\n`;
-            // Check if total_return is defined and format it accordingly
-            if (total_return !== undefined && total_return !== null) {
-                responseMessage += `• Retorno total: *${total_return.toFixed(2)}%*\n`;
+            if (!tickerRegex.test(ticker)) {
+                console.log(`Ticker inválido ingresado: ${ticker}`);
+                return ctx.reply("⚠️ Por favor proporciona un ticker válido. Ejemplo: AAPL", Markup.forceReply());
             } else {
-                responseMessage += `• Retorno total: *No disponible*\n`;
-            }
-            responseMessage += `_Respuesta solicitada por ${userId}_`;
-
-            // Send the message to the appropriate chat (user or group)
-            if (chatId !== undefined && chatId !== null) {
-                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown' });
-                console.log(`Response sent to chatId: ${chatId}`);
-            } else {
-                if (userId !== undefined && userId !== null) {                    
-                    bot.telegram.sendMessage(userId, responseMessage, { parse_mode: 'Markdown' });
-                    console.log(`Response sent to userId: ${userId}`);                    
+                const tickerResults = await findTicker(ticker);
+                if (tickerResults['quotes'].length > 0) {
+                    const buttons = tickerResults['quotes'].map(quote => [
+                        Markup.button.callback(`${quote.longname} : ${quote.symbol}`, `TICKER_REQUEST_${quote.symbol}`)
+                    ]);
+                    ctx.reply('Elige un ticker:', Markup.inlineKeyboard(buttons));
+                } else {                         
+                    return ctx.reply("❌ El ticker proporcionado no existe.");
                 }
             }
-            channel.ack(msg);
+        });
+    });
+
+    bot.action(/^TICKER_REQUEST_/, async (ctx) => {
+        const ticker = ctx.match.input.split('_')[2];
+        const chatId = ctx.chat?.type === 'private' ? undefined : ctx.chat?.id;
+        const userId = ctx.from.id;
+        
+        if (userId === undefined || ticker === undefined) {
+            return ctx.reply("❌ Error en la solicitud. Por favor intenta de nuevo.");        
+        } else {
+            console.log(`Usuario ${userId} solicitó ticker: ${ticker.toUpperCase()}, chatId: ${chatId}`);
+            await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), channel, chatId);
+            return ctx.reply(`✅ Solicitud enviada para ${ticker.toUpperCase()}. Recibirás la información en breve.`);        
+        }    
+    });
+
+    bot.action(/^SUBSCRIBE_/, (ctx) => {
+        const ticker = ctx.match.input.split('_')[1];
+        const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "subscribe" });
+        sendNotificationRequest(channel, Buffer.from(message));
+        ctx.reply(`🔔 Te has suscrito a las señales de ${ticker.toUpperCase()}.`);
+        console.log(`Usuario ${ctx.from.id} suscrito a notificaciones para el ticker: ${ticker.toUpperCase()}`);
+    });
+
+    bot.action('SUBSCRIPTION_LIST', async (ctx) => {
+        const subscriptions: string[] = []; // Replace with your subscription fetching logic
+        if (subscriptions.length === 0) {
+            return ctx.reply('❌ No tienes suscripciones activas.');
         }
+
+        const buttons = subscriptions.map(ticker => [
+            Markup.button.callback(`❌ Cancelar suscripción de ${ticker}`, `UNSUBSCRIBE_${ticker}`)
+        ]);
+        buttons.push([Markup.button.callback('❌ Cancelar todas las suscripciones', 'UNSUBSCRIBE_ALL')]);
+        ctx.reply('Tus suscripciones:', Markup.inlineKeyboard(buttons));
+    });
+
+    bot.action(/^UNSUBSCRIBE_/, async (ctx) => {
+        const ticker = ctx.match.input.split('_')[1];
+        const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "unsuscribe" });
+        sendNotificationRequest(channel, Buffer.from(message));        
+        ctx.reply(`❌ Has cancelado la suscripción a ${ticker}.`);
+    });
+
+    bot.action('UNSUBSCRIBE_ALL', async (ctx) => {
+        const message = JSON.stringify({ userId: ctx.from.id, ticker: "*", action: "unsuscribe" });
+        sendNotificationRequest(channel, Buffer.from(message));        
+        ctx.reply('❌ Has cancelado todas tus suscripciones.');
+    });
+
+    bot.action('BOT_HELP', (ctx) => {        
+        ctx.reply(helpMessage);
     });
 }
 
-// Consumer for subscription notifications
-async function consumeNotifications() {
-    channel.consume(NOTIFICATION_QUEUE, (msg) => {
-        if (msg) {
-            const notification = JSON.parse(msg.content.toString());
-            const { userId, ticker, signal } = notification;
 
-            // Send buy/sell signal to the subscribed user
-            const message = `📢 Nueva señal de ${signal} para *${ticker}*!`;
-            bot.telegram.sendMessage(userId, message, { parse_mode: 'Markdown' });
-            console.log(`Notification sent to userId: ${userId} for ticker: ${ticker} with signal: ${signal}`);
-            channel.ack(msg);
-        }
+async function main() {
+    const channel = await connectRabbitMQ();
+    const bot = new Telegraf(TELEGRAM_TOKEN);
+    await registerBotActions(bot, channel);
+    consumeTickerResponses(channel, bot);
+    consumeNotifications(channel, bot);
+    bot.launch().catch(console.error);
+    process.once('SIGINT', () => {
+        console.log("Bot is stopping...");
+        bot.stop('SIGINT');
+    });
+    process.once('SIGTERM', () => {
+        console.log("Bot is stopping...");
+        bot.stop('SIGTERM');
     });
 }
 
-// Bot commands
-bot.start((ctx) => {
-    ctx.reply("Bienvenido! Usa /ticker <TICKER> para obtener información o /subscribe <TICKER> para recibir notificaciones.");
-    console.log(`User started the bot: ${ctx.from.id}`);
-});
-
-bot.command('ticker', async (ctx) => {
-    const ticker = ctx.message.text.split(' ')[1];
-    if (!ticker) {
-        return ctx.reply("Por favor proporciona el ticker. Ejemplo: /ticker AAPL");
-    } else if (!await doesTickerExist(ticker)) {
-        return ctx.reply("El ticker proporcionado no existe.");
-    }
-
-
-    const chatId = ctx.message.chat.type === 'private' ? undefined : ctx.message.chat.id;
-    const userId = ctx.from.id;
-    if (userId === undefined || ticker === undefined) {
-        return ctx.reply("Error en la solicitud. Por favor intenta de nuevo.");        
-    }
-    console.log(`User ${userId} requested ticker: ${ticker.toUpperCase()}, chatId: ${chatId}`);
-    await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), chatId);
-    ctx.reply(`Solicitud enviada para ${ticker.toUpperCase()}. Recibirás la información en breve.`);
-});
-
-bot.command('subscribe', async (ctx) => {
-    const ticker = ctx.message.text.split(' ')[1];
-    if (!ticker) {
-        return ctx.reply("Por favor proporciona el ticker. Ejemplo: /subscribe AAPL");
-    }
-
-    const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "subscribe" });
-    channel.sendToQueue(NOTIFICATION_QUEUE, Buffer.from(message), { persistent: true });
-    
-    ctx.reply(`Te has suscrito a las notificaciones de ${ticker.toUpperCase()}. Recibirás señales de compra/venta.`);
-    console.log(`User ${ctx.from.id} subscribed to notifications for ticker: ${ticker.toUpperCase()}`);
-});
-
-bot.command('unsubscribe', async (ctx) => {
-    const ticker = ctx.message.text.split(' ')[1];
-    if (!ticker) {
-        return ctx.reply("Por favor proporciona el ticker. Ejemplo: /unsubscribe AAPL");
-    }
-
-    const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "unsubscribe" });
-    channel.sendToQueue(NOTIFICATION_QUEUE, Buffer.from(message), { persistent: true });
-
-    ctx.reply(`Te has dado de baja de las notificaciones de ${ticker.toUpperCase()}.`);
-    console.log(`User ${ctx.from.id} unsubscribed from notifications for ticker: ${ticker.toUpperCase()}`);
-});
-
-bot.command('list', async (ctx) => {
-    // Fetch the list of subscriptions for the user from a database or cache (to be implemented)
-    const subscriptions = ["AAPL", "TSLA"];  // Example placeholder
-    ctx.reply(`Tus suscripciones actuales: ${subscriptions.join(", ")}`);
-    console.log(`User ${ctx.from.id} requested their subscriptions.`);
-});
-
-// Start the bot
-bot.launch().catch(console.error);
-
-// Enable graceful stop
-process.once('SIGINT', () => {
-    console.log("Bot is stopping...");
-    bot.stop('SIGINT');
-});
-process.once('SIGTERM', () => {
-    console.log("Bot is stopping...");
-    bot.stop('SIGTERM');
-});
+main();
