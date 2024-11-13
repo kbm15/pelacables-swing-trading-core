@@ -8,19 +8,58 @@ type Interval = '1mo' | '1m' | '2m' | '5m' | '15m' | '30m' | '60m' | '90m' | '1h
  * @param ticker The ticker symbol to check, e.g., "AAPL" or "GOOGL".
  * @returns A promise that resolves to `true` if the ticker exists, or `false` if it does not.
  */
-export async function doesTickerExist(ticker: string): Promise<boolean> {
-    try {
-        // Attempt to fetch the quote for the given ticker
-        const queryOptions = {
-            period1: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365 * 2), // 2 years ago
-            interval: '1mo' as Interval
-        };
-        const result = await yahooFinance.chart(ticker, queryOptions);
-        return result.quotes.length > 0; // If quote data exists, the ticker is valid
-    } catch (error) {
+
+export async function findTicker(ticker: string): Promise<Record<string, {longname: string, symbol: string}[]>> {
+    const foundTickers: Record<string, {longname: string, symbol: string}[]> = {'quotes': []};
+    let result;
+    try {     
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        result = await yahooFinance.search(ticker);
         
-        console.error(`Error fetching ticker ${ticker}:`, error);
-        return false;
+        if (result.quotes.length > 0){
+            for(const quote of result.quotes){
+                if(quote.isYahooFinance){
+                    if(quote.symbol === ticker){
+                        return {'quotes': [{longname: quote.longname ?? '', symbol: quote.symbol}]};
+                    } else {
+                        foundTickers.quotes.push({longname: quote.longname ?? '', symbol: quote.symbol});
+                    }                    
+                }
+            }
+            return foundTickers;
+        }
+        
+    } catch (error) {        
+        console.error(`Error searching ticker ${ticker}:`, error);
         
     }
+    return foundTickers;
+}
+
+export async function checkTicker(ticker: string): Promise<boolean> {
+    let result;
+    try {
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        result = await yahooFinance.quote(ticker);
+        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined){
+            if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)) {
+                console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
+                console.log(`Current price is ${result.regularMarketPrice}`);
+                return true;            
+            }
+        }
+    } catch (error) {
+        if (error instanceof yahooFinance.errors.FailedYahooValidationError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [FailedYahooValidationError]`);
+            return false; 
+        } else if (error instanceof yahooFinance.errors.HTTPError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [HTTPError]`);
+            return false; 
+        } else {
+            console.warn(`Skipping yf.quote("${ticker}"): [UnknownError]`);
+            return false; 
+        }
+      }
+      
+    return false;    
 }
