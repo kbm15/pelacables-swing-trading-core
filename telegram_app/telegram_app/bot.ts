@@ -16,25 +16,40 @@ const TELEGRAM_TOKEN = loadEnvVariable('TELEGRAM_TOKEN');
 async function registerBotActions(bot: Telegraf, channel: Channel) {    
     const menu = {
         inline_keyboard: [
-            [
-                { text: '📈 Solicitar Estrategia de Ticker', callback_data:'CHECK_TICKER'},
-                { text:'📋 Ver Lista de Suscripciones', callback_data:'SUBSCRIPTION_LIST'},
-                { text:'❓ Ayuda del Bot', callback_data: 'BOT_HELP'}
-            ],
+            [{ text: '📈 Solicitar Estrategia de Ticker', callback_data:'CHECK_TICKER'}],
+            [{ text:'📋 Ver Lista de Suscripciones', callback_data:'SUBSCRIPTION_LIST'}],
+            [{ text:'📝 Ayuda del Bot', callback_data:'MAIN_MENU'}]
         ],
+        resize_keyboard: true
     };
     const helpMessage = `
-        Este 🤖 ofrece señales de compra/venta en el mercado de valores en base a un análisis diario.
+        🤖 *Bienvenido al Bot de MonoTrading* 📈
 
-        **Funciones:**
-        - **Estrategia de Ticker**: Analiza un ticker y recibe una estrategia recomendada. Puedes suscribirte para recibir actualizaciones.
-        - **Lista de Suscripciones**: Gestiona tus suscripciones de tickers.
+        Este bot te permite recibir señales de compra/venta basadas en el análisis del mercado con un marco de tiempo _diario_.
+
+        ---
+
+        🛠️ **Funciones Principales:**
+        1. **📊 Solicitar Estrategia de Ticker**  
+        Analiza un _ticker_ y obtén una estrategia recomendada. También puedes suscribirte para recibir actualizaciones automáticas.
+
+        2. **📋 Lista de Suscripciones**  
+        Administra tus suscripciones activas a señales de diferentes _tickers_ y anula la suscripción cuando lo desees.
+
+        ---
+
+        📖 **Interpretando las Señales:**
+        - 📈 *Señal de Compra*: Indica una posible tendencia al alza.
+        - 📉 *Señal de Venta*: Señala una posible tendencia a la baja.
         
-        **Interpretación de las señales**:
-        Las señales de compra indican una posible tendencia al alza, mientras que las señales de venta sugieren una posible tendencia a la baja. Usa estas señales a tu discreción.
+        _Recuerda que estas señales son solo una guía, y es importante realizar tu propio análisis._
 
-        Para un análisis más detallado, abre el ticker en la web.
-        `;
+        🔍 Para un análisis detallado, abre el _ticker_ en la aplicación web para ver gráficos en tiempo real de las señales de compra/venta.
+
+        📅 **Nota**: Todas las estrategias están basadas en datos diarios.
+            
+        ¡Esperamos que este bot te sea útil en tu camino financiero! 🤑💹
+    `;
     bot.start((ctx) => {
         console.log(`El usuario inició el bot: ${ctx.from.id}`);
         return ctx.reply(`¡Bienvenido! ${helpMessage} Elige una opción:`, {parse_mode: "Markdown", reply_markup: menu});    

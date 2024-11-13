@@ -35,6 +35,7 @@ COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app/bot.ts .
 COPY --from=prerelease /usr/src/app/package.json .
 COPY --from=prerelease /usr/src/app/utils ./utils
+COPY --from=prerelease /usr/src/app/amqp ./amqp
 
 # run the app
 USER bun
