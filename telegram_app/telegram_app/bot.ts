@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { message } from 'telegraf/filters'
 import type { Channel } from 'amqplib';
-import { findTicker } from './utils/checkTicker';
+import { findTicker,checkTicker } from './utils/checkTicker';
 
 import { connectRabbitMQ } from './amqp/setupChannel';
 import { sendNotificationRequest, consumeNotifications } from './amqp/handleNotification';
@@ -87,6 +87,11 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         const ticker = ctx.match.input.split('_')[2];
         const chatId = ctx.chat?.type === 'private' ? undefined : ctx.chat?.id;
         const userId = ctx.from.id;
+        const tickerValid = await checkTicker(ticker);
+
+        if (!tickerValid) {
+            return ctx.reply(`❌ Ticker ${ticker} no valido. Por favor intenta de nuevo.`, Markup.forceReply());    
+        }
         
         if (userId === undefined || ticker === undefined) {
             return ctx.reply("❌ Error en la solicitud. Por favor intenta de nuevo.");        

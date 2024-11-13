@@ -8,11 +8,13 @@ type Interval = '1mo' | '1m' | '2m' | '5m' | '15m' | '30m' | '60m' | '90m' | '1h
  * @param ticker The ticker symbol to check, e.g., "AAPL" or "GOOGL".
  * @returns A promise that resolves to `true` if the ticker exists, or `false` if it does not.
  */
+
 export async function findTicker(ticker: string): Promise<Record<string, {longname: string, symbol: string}[]>> {
     const foundTickers: Record<string, {longname: string, symbol: string}[]> = {'quotes': []};
-    try {
-        // Attempt to fetch the quote for the given ticker        
-        const result = await yahooFinance.search(ticker);
+    let result;
+    try {     
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        result = await yahooFinance.search(ticker);
         
         if (result.quotes.length > 0){
             for(const quote of result.quotes){
@@ -27,11 +29,37 @@ export async function findTicker(ticker: string): Promise<Record<string, {longna
             return foundTickers;
         }
         
-    } catch (error) {
-        
-        console.error(`Error fetching ticker ${ticker}:`, error);
-        return foundTickers;
+    } catch (error) {        
+        console.error(`Error searching ticker ${ticker}:`, error);
         
     }
     return foundTickers;
+}
+
+export async function checkTicker(ticker: string): Promise<boolean> {
+    let result;
+    try {
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        result = await yahooFinance.quote(ticker);
+        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined){
+            if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)) {
+                console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
+                console.log(`Current price is ${result.regularMarketPrice}`);
+                return true;            
+            }
+        }
+    } catch (error) {
+        if (error instanceof yahooFinance.errors.FailedYahooValidationError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [FailedYahooValidationError]`);
+            return false; 
+        } else if (error instanceof yahooFinance.errors.HTTPError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [HTTPError]`);
+            return false; 
+        } else {
+            console.warn(`Skipping yf.quote("${ticker}"): [UnknownError]`);
+            return false; 
+        }
+      }
+      
+    return false;    
 }
