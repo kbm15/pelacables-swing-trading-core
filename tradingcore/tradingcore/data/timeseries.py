@@ -4,7 +4,7 @@ import pickle
 from datetime import datetime, timedelta, timezone
 import logging
 from tradingcore.utils.yahoo_finance import fetch_yahoo_finance_data
-from tradingcore.utils.postgresql import init_database
+from tradingcore.utils.postgresql import init_database, connect_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,14 +25,26 @@ class TimeSeriesData:
         self.data = self.load_data().drop_duplicates(subset=['Open'], keep='first')
 
     def load_data(self):
-        # Load data from cache if available
-        cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
-        if os.path.exists(cache_path):
-            logging.debug(f"Loading data from cache: {cache_path}")
-            with open(cache_path, 'rb') as f:
-                return pickle.load(f)
-        else:
-            logging.debug(f"No cache found. Fetching new data for {self.ticker} with interval {self.interval}")
+
+        # Load data from PostgreSQL if available
+        conn = connect_db()
+        query = """
+        SELECT * FROM DataTimeSeries
+        WHERE ticker = %s AND interval = %s
+        ORDER BY date ASC
+        """
+        try:
+            data = pd.read_sql(query, conn, params=(self.ticker, self.interval))
+            conn.close()
+            if not data.empty:
+                logging.debug(f"Loaded data from PostgreSQL for {self.ticker} with interval {self.interval}")
+                return data
+            else:
+                logging.debug(f"No data found in PostgreSQL for {self.ticker} with interval {self.interval}")
+                return self.fetch_new_data()
+        except Exception as e:
+            logging.error(f"Error loading data from PostgreSQL: {e}")
+            conn.close()
             return self.fetch_new_data()
 
     def fetch_new_data(self):
@@ -43,22 +55,37 @@ class TimeSeriesData:
         return data
 
     def cache_data(self, data):
-        # Cache the fetched data
-        if not os.path.exists(self.cache_dir):
-            os.makedirs(self.cache_dir)
-        cache_path = os.path.join(self.cache_dir, f"{self.ticker}_{self.interval}.pkl")
-        logging.debug(f"Caching data to {cache_path}")
-        with open(cache_path, 'wb') as f:
-            pickle.dump(data, f)
+
+        # Cache the fetched data into PostgreSQL
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # Insert the data into PostgreSQL table
+        for index, row in data.iterrows():
+            cursor.execute("""
+            INSERT INTO DataTimeSeries (date, ticker, interval, open, high, low, close, volume, dividends, stock_splits)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (date, ticker, interval) DO NOTHING
+            """, (row['Date'], self.ticker, self.interval, row['Open'], row['High'], row['Low'], row['Close'],
+                  row['Volume'], row['Dividends'], row['Stock Splits']))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        logging.debug(f"Cached data to PostgreSQL for {self.ticker} with interval {self.interval}")
+
     
     def delete_old_data(self, cutoff_date):
         # Delete data older than cutoff_date
-        logging.debug(f"Deleting data older than {cutoff_date}")    
-        if cutoff_date.tzinfo == None:             
-            logging.error(f"Naive datetime object, timezone is {cutoff_date.tzinfo}") 
-        else:
-            self.data = self.data[self.data.index >= cutoff_date]
-            self.cache_data(self.data)
+        logging.debug(f"Deleting data older than {cutoff_date}")
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+        DELETE FROM DataTimeSeries
+        WHERE date < %s AND ticker = %s AND interval = %s
+        """, (cutoff_date, self.ticker, self.interval))
+        conn.commit()
+        cursor.close()
+        conn.close()
 
     def update_data(self):
         # Update data by fetching new data if needed

@@ -10,24 +10,34 @@ POSTGRES_DB = os.getenv('POSTGRES_DB')
 POSTGRES_USER = os.getenv('POSTGRES_USER')
 POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
 
-def init_database():
+
+def connect_db():
     """
-    Función para inicializar la base de datos PostgreSQL.
-    Si la base de datos ya existe, lo notifica en el log y termina.
-    Además, crea la tabla DataTimeSeries si no existe.
+    Función para conectar a la base de datos PostgreSQL.
+    Retorna un objeto de conexión.
     """
     try:
-        # Conectarse a la base de datos 'postgres' para ejecutar comandos administrativos
         conn = psycopg2.connect(
             host=POSTGRES_HOST,
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD,
-            database="postgres"
+            database=POSTGRES_DB
         )
+        return conn
+    except Exception as error:
+        logging.error("Failed to connect to PostgreSQL database:", error)
+        exit(1)
+
+
+def init_database():
+
+    try:
+        # Usar connect_db para obtener la conexión a la base de datos 'postgres'
+        conn = connect_db()
         conn.autocommit = True  # Para permitir la creación de bases de datos
         cursor = conn.cursor()
         
-        # Crear la base de datos especificada en POSTGRES_DB
+        # Crear la base de datos especificada en POSTGRES_DB si no existe
         try:
             cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(POSTGRES_DB)))
             logging.info(f"Initialized PostgreSQL database {POSTGRES_DB}")
@@ -39,12 +49,7 @@ def init_database():
         conn.close()
 
         # Ahora nos conectamos a la base de datos creada/seleccionada para crear la tabla
-        conn = psycopg2.connect(
-            host=POSTGRES_HOST,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            database=POSTGRES_DB
-        )
+        conn = connect_db()
         cursor = conn.cursor()
 
         # Crear la tabla DataTimeSeries si no existe
