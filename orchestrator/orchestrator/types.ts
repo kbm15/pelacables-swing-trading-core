@@ -2,8 +2,7 @@ export interface Request {
     ticker: string;
     indicator: string;
     strategy: string;
-    backtest: boolean;
-    userId: number;
+    flag: 'simple' | 'backtest' | 'notification';
     chatId: number;
 }
 
@@ -11,7 +10,7 @@ export interface Response {
     ticker: string;
     indicator: string;
     strategy: string;
-    backtest: boolean;
+    flag: 'simple' | 'backtest' | 'notification';
     signal: string;
     total_return: number;
     chatId: number | null;
@@ -23,6 +22,11 @@ export interface Operation {
     indicator: string;
     strategy: string;
     timestamp: Date;
+}
+
+export interface Subscription {
+    ticker: string;
+    userIds: string[];
 }
 
 export interface Indicator {

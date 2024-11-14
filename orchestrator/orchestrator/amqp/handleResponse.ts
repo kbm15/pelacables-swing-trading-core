@@ -3,7 +3,7 @@ import type { Channel } from 'amqplib';
 import { Client as PostgresClient } from 'pg';
 import { countIndicators, getBestIndicator, saveBestIndicator } from '../db/indicatorQueries'
 import { recordLastOperation } from '../db/operationsQueries';
-import { answerPendingRequests } from './handleRequest';
+import { answerRequest } from './handleRequest';
 import type { Operation, Response, ResponseAggregator, TickerIndicator } from '../types';
 import { RESULTS_QUEUE } from '../config';
 
@@ -12,15 +12,16 @@ const responseAggregator: ResponseAggregator = {};
 export async function handleResponse(channel: Channel,client: PostgresClient): Promise<void> {
     channel.consume(RESULTS_QUEUE, async (msg) => {
         if (msg) {
+            console.log(`Response received: ${msg.content.toString()}`);
             const response: Response = JSON.parse(msg.content.toString());
 
-            if (response.backtest) {
+            if (response.flag === 'backtest') {
                 if(responseAggregator[response.ticker]){
                     responseAggregator[response.ticker].responses.push(response);
                     const expectedResponses = await countIndicators(client);
                     const receivedResponses = responseAggregator[response.ticker].responses.length;
 
-                    console.log('Aggregating responses, expected responses:', expectedResponses, 'received responses:', receivedResponses);
+                    console.log(`Aggregating responses for ${response.ticker}: expected ${expectedResponses}, received ${receivedResponses}`);
 
                     if (receivedResponses === expectedResponses) {
                         const bestResponse = responseAggregator[response.ticker].responses.reduce((best, current) =>
@@ -39,7 +40,7 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                         const operation: Operation = { ticker: response.ticker, operation: bestResponse.signal, indicator: bestResponse.indicator, strategy: bestResponse.strategy, timestamp: new Date() };                        
                         await saveBestIndicator(tickerIndicator, client);
                         await recordLastOperation(operation, client);
-                        await answerPendingRequests(channel, bestResponse);
+                        answerRequest(channel, bestResponse);
                         delete responseAggregator[response.ticker];
                     }
                 } else {
@@ -49,19 +50,37 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                 const operation: Operation = { ticker: response.ticker, operation: response.signal, indicator: response.indicator, strategy: response.strategy, timestamp: new Date() };                                
                 await recordLastOperation(operation, client);
                 const bestIndicator = await getBestIndicator(response.ticker, client);
-                if (bestIndicator) {
-                    const responseReturn : Response = { 
-                        ticker: response.ticker,
-                        indicator: response.indicator,
-                        strategy: response.strategy,
-                        backtest: false,
-                        signal: response.signal,
-                        total_return: bestIndicator.total_return,
-                        chatId: response.chatId
-                    }; 
-                    await answerPendingRequests(channel, responseReturn);
-                } else {
-                    await answerPendingRequests(channel, response);
+                if(response.flag === 'notification') {
+                    if (bestIndicator !== null) {
+                        const responseReturn : Response = { 
+                            ticker: response.ticker,
+                            indicator: response.indicator,
+                            strategy: response.strategy,
+                            flag: 'notification',
+                            signal: response.signal,
+                            total_return: bestIndicator.total_return,
+                            chatId: response.chatId
+                        }; 
+                        answerRequest(channel, responseReturn);
+                    } else {
+                        answerRequest(channel, response);
+                    }                    
+                }
+                if(response.flag === 'simple') {
+                    if (bestIndicator !== null) {
+                        const responseReturn : Response = { 
+                            ticker: response.ticker,
+                            indicator: response.indicator,
+                            strategy: response.strategy,
+                            flag: 'simple',
+                            signal: response.signal,
+                            total_return: bestIndicator.total_return,
+                            chatId: response.chatId
+                        }; 
+                        answerRequest(channel, responseReturn);
+                    } else {
+                        answerRequest(channel, response);
+                    }
                 }
                 
             }
