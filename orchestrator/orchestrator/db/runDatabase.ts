@@ -13,8 +13,7 @@ export async function runDatabase() {
     const queries = [
         // Users table
         `CREATE TABLE IF NOT EXISTS Users (
-            user_id UUID PRIMARY KEY,
-            telegram_id TEXT,
+            telegram_id INT PRIMARY KEY,
             username TEXT,
             email TEXT,
             date_created TIMESTAMPTZ,
@@ -25,7 +24,7 @@ export async function runDatabase() {
         // Subscriptions table
         `CREATE TABLE IF NOT EXISTS Subscriptions (
             subscription_id UUID PRIMARY KEY,
-            user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
+            telegram_id INT REFERENCES Users(telegram_id) ON DELETE CASCADE,
             plan_type TEXT,
             start_date TIMESTAMPTZ,
             end_date TIMESTAMPTZ,
@@ -57,7 +56,7 @@ export async function runDatabase() {
         `CREATE TABLE IF NOT EXISTS Messages (
             message_id UUID PRIMARY KEY,
             indicator_id UUID REFERENCES Indicators(indicator_id) ON DELETE CASCADE,
-            user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
+            telegram_id INT REFERENCES Users(telegram_id) ON DELETE CASCADE,
             message_content TEXT,
             message_type TEXT,
             sent_at TIMESTAMPTZ
@@ -66,10 +65,10 @@ export async function runDatabase() {
         // Notifications table
         `CREATE TABLE IF NOT EXISTS Notifications (
             ticker TEXT,
-            user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
+            telegram_id INT REFERENCES Users(telegram_id) ON DELETE CASCADE,
             subscribed_at TIMESTAMPTZ,
             status TEXT,
-            PRIMARY KEY (ticker, user_id)
+            PRIMARY KEY (ticker, telegram_id)
         )`,
     
         // Operations table

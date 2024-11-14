@@ -131,7 +131,7 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
     });
 
     bot.action('UNSUBSCRIBE_ALL', async (ctx) => {
-        const message = JSON.stringify({ userId: ctx.from.id, ticker: "*", action: "unsuscribe" });
+        const message = JSON.stringify({ userId: ctx.from.id, ticker: null, action: "unsuscribe_all" });
         sendSuscriptionRequest(channel, Buffer.from(message));        
         ctx.reply('❌ Has cancelado todas tus suscripciones.');
     });

@@ -11,16 +11,11 @@
   "dependencies": {
     "@types/amqplib": "^0.10.5",
     "@types/luxon": "^3.4.2",
-    "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.10",
     "amqplib": "^0.10.4",
-    "cassandra-driver": "^4.7.2",
+    "cron": "^3.2.1",
     "luxon": "^3.5.0",
-    "mariadb": "^3.4.0",
-    "node-cron": "^3.0.3",
     "pg": "^8.13.1",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "uuid": "^11.0.2"
   }
 }

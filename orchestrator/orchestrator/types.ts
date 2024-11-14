@@ -3,7 +3,6 @@ export interface Request {
     indicator: string;
     strategy: string;
     flag: 'simple' | 'backtest' | 'notification';
-    userId: number;
     chatId: number;
 }
 
@@ -23,6 +22,11 @@ export interface Operation {
     indicator: string;
     strategy: string;
     timestamp: Date;
+}
+
+export interface Subscription {
+    ticker: string;
+    userIds: string[];
 }
 
 export interface Indicator {

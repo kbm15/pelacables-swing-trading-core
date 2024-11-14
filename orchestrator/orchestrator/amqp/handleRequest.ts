@@ -2,9 +2,10 @@
 import type { Channel } from 'amqplib';
 import { Client as PostgresClient } from 'pg';
 import { TICKER_REQUEST_QUEUE, TICKER_RESPONSE_QUEUE, TASK_QUEUE } from '../config';
-import { getBestIndicator, getIndicatorDetailsById, getAllIndicators} from '../db/indicatorQueries';
+import { getBestIndicator, getAllIndicators} from '../db/indicatorQueries';
 import { getLastOperation } from '../db/operationsQueries';
 import { addTickerToResponseAggregator } from './handleResponse';
+import { sendNotification } from './handleSuscription';
 import type { Response, Request } from '../types';
 import { DateTime } from 'luxon';
 
@@ -12,33 +13,79 @@ import { DateTime } from 'luxon';
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const pendingRequests: Request[] = [];
 
-export async function answerPendingRequests(channel: Channel, response: Response) {
-    for (const request of pendingRequests) {
-        const message = JSON.stringify({
-            userId: request.userId,
-            ticker: response.ticker,
-            indicator: response.indicator,
-            strategy: response.strategy,
-            signal: response.signal,
-            total_return: response.total_return,
-            chatId: request.chatId
-        });
-        channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(message), { persistent: true });
-    }
+export function answerRequest(channel: Channel, response: Response, ) {
+    const answeringRequests: Request[] = [...pendingRequests];
     pendingRequests.length = 0;
+    for (const request of answeringRequests) {
+        if (request.ticker == response.ticker) {
+            const message = JSON.stringify({
+                ticker: response.ticker,
+                indicator: response.indicator,
+                strategy: response.strategy,
+                signal: response.signal,
+                total_return: response.total_return,
+                chatId: request.chatId
+            });
+            if (request.flag === 'notification') {
+                sendNotification(channel,Buffer.from(message));
+            } else {
+                console.log(`Answering request ${request.ticker} for ${response.ticker}`);
+                channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(message), { persistent: true });
+            }
+            
+        } else {
+            pendingRequests.push(request);
+        }
+    }
 }
 
-export async function sendRequest(channel: Channel, request: Request) {
+// export function answerBacktestRequests(channel: Channel, response: Response) {
+//     if(backtestRequests.length === 0) return;
+//     answerRequest(channel, response, backtestRequests);
+// }
+
+// export function answerSimpleRequests(channel: Channel, response: Response) {
+//     if(simpleRequests.length === 0) return;
+//     answerRequest(channel, response, simpleRequests);
+// }
+
+// export function answerNotificationRequests(channel: Channel, response: Response) {
+//     if(notificationRequests.length === 0) return;
+//     answerRequest(channel, response, notificationRequests);
+// }
+
+function pushRequest(request: Request) {
+    pendingRequests.push(request);
+    // if (request.flag === 'simple') {
+    //     simpleRequests.push(request);
+    // } else if (request.flag === 'backtest') {
+    //     backtestRequests.push(request);
+    // } else if (request.flag === 'notification') {
+    //     notificationRequests.push(request);
+    // }
+}
+
+function tickerExists(ticker: string) {
+    const requests = [...pendingRequests];
+    for (const request of requests) {
+        if (request.ticker === ticker) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export function sendRequest(channel: Channel, request: Request) {
     const message = JSON.stringify(request);
-    await channel.sendToQueue(TASK_QUEUE, Buffer.from(message), { persistent: true });
-    console.log(`Ticker request sent: ${request.ticker} for userId: ${request.userId}, chatId: ${request.chatId}`);
+    channel.sendToQueue(TASK_QUEUE, Buffer.from(message), { persistent: true });
+    console.log(`Ticker request sent: ${request.ticker} for chatId: ${request.chatId}`);
 }
 
 export async function handleRequest(channel: Channel, client: PostgresClient) {
     channel.consume(TICKER_REQUEST_QUEUE, async (msg) => {
         if (msg) {
             console.log(`Received ticker request: ${msg.content.toString()}`);
-            const { ticker, chatId, userId } = JSON.parse(msg.content.toString());
+            const { ticker, chatId, userId, source } = JSON.parse(msg.content.toString());
 
             const bestIndicator = await getBestIndicator(ticker, client);            
 
@@ -47,21 +94,20 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                 
                 if (addTickerToResponseAggregator(ticker)) {
                     const indicatorStrategies = await getAllIndicators(client);
-
                     
                     for (const { name, strategy } of indicatorStrategies) {
                         const request: Request = { 
                             ticker:ticker, 
                             indicator: name, 
                             strategy: strategy, 
-                            flag: 'backtest', 
-                            userId: userId, 
-                            chatId: chatId };
-                        await sendRequest(channel, request);
-                        
+                            flag: 'backtest',
+                            chatId: chatId !== null ? chatId : userId };
+                        if (!tickerExists(ticker)) {
+                            sendRequest(channel, request);
+                        }                        
                     }
-                    const request: Request = { ticker, indicator: 'None', strategy: 'None', flag: 'backtest', userId, chatId };
-                    pendingRequests.push(request);
+                    const request: Request = { ticker, indicator: 'None', strategy: 'None', flag: source,  chatId: chatId !== null ? chatId : userId };
+                    pushRequest(request);
                     
                 } else {
                     console.log(`Already aggregating responses for ${ticker}, skipping request.`);
@@ -102,12 +148,13 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                             ticker:ticker, 
                             indicator: bestIndicator.indicator, 
                             strategy: bestIndicator.strategy, 
-                            flag: 'simple', 
-                            userId: userId, 
-                            chatId: chatId 
-                        };                            
-                        sendRequest(channel, request);
-                        pendingRequests.push(request);
+                            flag: source, 
+                            chatId: chatId !== null ? chatId : userId
+                        }; 
+                        if (!tickerExists(ticker)) {
+                            sendRequest(channel, request);
+                        }
+                        pushRequest(request);
                     }
                 } else {
                     console.log(`Last operation for ${ticker} not found`);
@@ -115,12 +162,13 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                         ticker:ticker, 
                         indicator: bestIndicator.indicator, 
                         strategy: bestIndicator.strategy, 
-                        flag: 'simple', 
-                        userId: userId, 
-                        chatId: chatId 
+                        flag: source, 
+                        chatId: chatId !== null ? chatId : userId 
                     };                            
-                    sendRequest(channel, request);
-                    pendingRequests.push(request);
+                    if (!tickerExists(ticker)) {
+                        sendRequest(channel, request);
+                    }
+                    pushRequest(request);
                 }
                 
             }
