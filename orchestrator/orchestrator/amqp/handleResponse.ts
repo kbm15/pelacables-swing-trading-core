@@ -14,7 +14,7 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
         if (msg) {
             const response: Response = JSON.parse(msg.content.toString());
 
-            if (response.backtest) {
+            if (response.flag === 'backtest') {
                 if(responseAggregator[response.ticker]){
                     responseAggregator[response.ticker].responses.push(response);
                     const expectedResponses = await countIndicators(client);
@@ -49,19 +49,24 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                 const operation: Operation = { ticker: response.ticker, operation: response.signal, indicator: response.indicator, strategy: response.strategy, timestamp: new Date() };                                
                 await recordLastOperation(operation, client);
                 const bestIndicator = await getBestIndicator(response.ticker, client);
-                if (bestIndicator) {
-                    const responseReturn : Response = { 
-                        ticker: response.ticker,
-                        indicator: response.indicator,
-                        strategy: response.strategy,
-                        backtest: false,
-                        signal: response.signal,
-                        total_return: bestIndicator.total_return,
-                        chatId: response.chatId
-                    }; 
-                    await answerPendingRequests(channel, responseReturn);
-                } else {
-                    await answerPendingRequests(channel, response);
+                if(response.flag === 'notification') {
+                    
+                }
+                if(response.flag === 'simple') {
+                    if (bestIndicator !== null) {
+                        const responseReturn : Response = { 
+                            ticker: response.ticker,
+                            indicator: response.indicator,
+                            strategy: response.strategy,
+                            flag: 'simple',
+                            signal: response.signal,
+                            total_return: bestIndicator.total_return,
+                            chatId: response.chatId
+                        }; 
+                        await answerPendingRequests(channel, responseReturn);
+                    } else {
+                        await answerPendingRequests(channel, response);
+                    }
                 }
                 
             }

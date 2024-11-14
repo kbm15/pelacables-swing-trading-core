@@ -4,7 +4,7 @@ import type { Channel } from 'amqplib';
 import { findTicker,checkTicker } from './utils/checkTicker';
 
 import { connectRabbitMQ } from './amqp/setupChannel';
-import { sendNotificationRequest, consumeNotifications } from './amqp/handleNotification';
+import { sendSuscriptionRequest, consumeNotifications } from './amqp/handleNotification';
 import { sendTickerRequest, consumeTickerResponses } from './amqp/handleTicker';
 
 
@@ -105,7 +105,7 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
     bot.action(/^SUBSCRIBE_/, (ctx) => {
         const ticker = ctx.match.input.split('_')[1];
         const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "subscribe" });
-        sendNotificationRequest(channel, Buffer.from(message));
+        sendSuscriptionRequest(channel, Buffer.from(message));
         ctx.reply(`🔔 Te has suscrito a las señales de ${ticker.toUpperCase()}.`);
         console.log(`Usuario ${ctx.from.id} suscrito a notificaciones para el ticker: ${ticker.toUpperCase()}`);
     });
@@ -126,13 +126,13 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
     bot.action(/^UNSUBSCRIBE_/, async (ctx) => {
         const ticker = ctx.match.input.split('_')[1];
         const message = JSON.stringify({ userId: ctx.from.id, ticker: ticker.toUpperCase(), action: "unsuscribe" });
-        sendNotificationRequest(channel, Buffer.from(message));        
+        sendSuscriptionRequest(channel, Buffer.from(message));        
         ctx.reply(`❌ Has cancelado la suscripción a ${ticker}.`);
     });
 
     bot.action('UNSUBSCRIBE_ALL', async (ctx) => {
         const message = JSON.stringify({ userId: ctx.from.id, ticker: "*", action: "unsuscribe" });
-        sendNotificationRequest(channel, Buffer.from(message));        
+        sendSuscriptionRequest(channel, Buffer.from(message));        
         ctx.reply('❌ Has cancelado todas tus suscripciones.');
     });
 

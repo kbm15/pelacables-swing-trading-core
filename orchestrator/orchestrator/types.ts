@@ -2,7 +2,7 @@ export interface Request {
     ticker: string;
     indicator: string;
     strategy: string;
-    backtest: boolean;
+    flag: 'simple' | 'backtest' | 'notification';
     userId: number;
     chatId: number;
 }
@@ -11,7 +11,7 @@ export interface Response {
     ticker: string;
     indicator: string;
     strategy: string;
-    backtest: boolean;
+    flag: 'simple' | 'backtest' | 'notification';
     signal: string;
     total_return: number;
     chatId: number | null;

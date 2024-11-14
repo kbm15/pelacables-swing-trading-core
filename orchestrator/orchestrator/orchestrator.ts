@@ -6,6 +6,7 @@ import { insertIndicators, countIndicators } from './db/indicatorQueries';
 import { handleResponse } from './amqp/handleResponse';
 import { handleRequest } from './amqp/handleRequest';
 
+
 async function main() {    
     await initDatabase();
     const client = await runDatabase();

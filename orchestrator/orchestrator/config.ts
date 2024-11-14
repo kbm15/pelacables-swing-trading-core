@@ -18,4 +18,3 @@ export const POSTGRES_HOST = loadEnvVariable('POSTGRES_HOST');
 export const POSTGRES_DB = loadEnvVariable('POSTGRES_DB');
 export const POSTGRES_USER = loadEnvVariable('POSTGRES_USER');
 export const POSTGRES_PASSWORD = loadEnvVariable('POSTGRES_PASSWORD');
-export const APP_INSTANCE_QUEUE = 'app_instance_queue_instance_1';

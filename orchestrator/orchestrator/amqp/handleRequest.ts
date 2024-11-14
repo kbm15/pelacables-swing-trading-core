@@ -54,13 +54,13 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                             ticker:ticker, 
                             indicator: name, 
                             strategy: strategy, 
-                            backtest: true, 
+                            flag: 'backtest', 
                             userId: userId, 
                             chatId: chatId };
                         await sendRequest(channel, request);
                         
                     }
-                    const request: Request = { ticker, indicator: 'None', strategy: 'None', backtest: true, userId, chatId };
+                    const request: Request = { ticker, indicator: 'None', strategy: 'None', flag: 'backtest', userId, chatId };
                     pendingRequests.push(request);
                     
                 } else {
@@ -73,7 +73,6 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                     // Set Eastern Time (ET) zone-aware times for NYSE open and close
                     const closeNYSE = DateTime.now()
                     .setZone("America/New_York")       // Set to ET
-                    .minus({ days: 1 })                // Move to yesterday
                     .set({ hour: 16, minute: 0, second: 0, millisecond: 0 });
 
                     const openNYSE = DateTime.now()
@@ -84,8 +83,8 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
 
                     // Check if the last operation's timestamp is within the specified range
                     //if (lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) {
-                    if (lastOperationTimestamp > closeNYSE ) {                    
-                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is within times for NYSE open and close`);
+                    if ((lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) || lastOperationTimestamp < DateTime.now().minus({ hours: 1 })) {                    
+                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is not within times for NYSE open and close or more than 1 hour ago`);
                         const response = JSON.stringify({ 
                             ticker: ticker,
                             indicator: lastOperation.indicator,
@@ -98,12 +97,12 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                         });
                         channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(response), { persistent: false });
                     } else {
-                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is not within times for NYSE open and close`);
+                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is within times for NYSE open and close`);
                         const request: Request = { 
                             ticker:ticker, 
                             indicator: bestIndicator.indicator, 
                             strategy: bestIndicator.strategy, 
-                            backtest: false, 
+                            flag: 'simple', 
                             userId: userId, 
                             chatId: chatId 
                         };                            
@@ -116,7 +115,7 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                         ticker:ticker, 
                         indicator: bestIndicator.indicator, 
                         strategy: bestIndicator.strategy, 
-                        backtest: false, 
+                        flag: 'simple', 
                         userId: userId, 
                         chatId: chatId 
                     };                            
