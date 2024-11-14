@@ -2,11 +2,11 @@ import type { Channel } from 'amqplib';
 import type { Telegraf } from 'telegraf';
 import { loadEnvVariable } from '../utils/loadEnv';
 
+const SUSCRIPTION_QUEUE = loadEnvVariable('SUSCRIPTION_QUEUE');
 const NOTIFICATION_QUEUE = loadEnvVariable('NOTIFICATION_QUEUE');
 
-export function sendNotificationRequest(channel: Channel, message: Buffer) {
-    channel.sendToQueue(NOTIFICATION_QUEUE, message, { persistent: true });
-
+export function sendSuscriptionRequest(channel: Channel, message: Buffer) {
+    channel.sendToQueue(SUSCRIPTION_QUEUE, message, { persistent: true });
 }
 
 // Consumer for subscription notifications

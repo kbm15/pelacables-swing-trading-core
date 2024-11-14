@@ -30,6 +30,7 @@ services:
       TICKER_REQUEST_QUEUE: ticker_requests
       TICKER_RESPONSE_QUEUE: ticker_responses
       NOTIFICATION_QUEUE: indicator_notifications
+      SUSCRIPTION_QUEUE: indicator_suscriptions
     depends_on:
       - rabbitmq
     restart: on-failure
@@ -44,7 +45,8 @@ services:
       TASK_QUEUE: indicator_tasks
       RESULTS_QUEUE: indicator_results 
       NOTIFICATION_QUEUE: indicator_notifications
-      POSTGRES_HOST: postgres
+      SUSCRIPTION_QUEUE: indicator_suscriptions
+      POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: production_db
