@@ -9,8 +9,8 @@ export async function scheduleSuscriptionQueries(channel: Channel,client: Postgr
     const openNYSE = DateTime.now()
                     .setZone("America/New_York")       // Set to ET
                     .set({ hour: 9, minute: 30, second: 0, millisecond: 0 });   
-    //const cronString = `* * * * *`;
-    const job = new CronJob(openNYSE, async () => {  // Run daily at midnight
+    const cronString = `30 9 * * *`;
+    const job = new CronJob(cronString, async () => {  // Run daily at midnight
         console.log('Running subscription scheduler');
         const subscriptions = await getSubscriptions(client);
     
@@ -26,7 +26,7 @@ export async function scheduleSuscriptionQueries(channel: Channel,client: Postgr
     },
     null, // onComplete
 	true, // start
-	'America/Los_Angeles' // timeZone
+	'America/New_York' // timeZone
     );
     console.log(`Scheduled subscription scheduler to run at ${job.nextDate().toISOTime()}`);
 }
