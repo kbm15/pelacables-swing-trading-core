@@ -7,7 +7,7 @@ const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
 
 // Send a ticker request to the queue
 export async function sendTickerRequest(userId: number, ticker: string, channel: Channel, chatId?: number) {
-    const message = JSON.stringify({ userId, ticker, chatId: chatId || null });
+    const message = JSON.stringify({ userId, ticker, chatId: chatId || null, source: 'simple' });
     channel.sendToQueue(TICKER_REQUEST_QUEUE, Buffer.from(message), { persistent: true });
     console.log(`Ticker request sent: ${ticker} for userId: ${userId}, chatId: ${chatId}`);
 }
@@ -28,7 +28,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 continue;
             }
 
-            const { userId, ticker, indicator, strategy, signal, total_return, chatId } = response;
+            const { ticker, indicator, strategy, signal, total_return, chatId } = response;
 
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
@@ -36,7 +36,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
             responseMessage += `🔔 **Señal:** ${signal ? `*${signal}*` : 'Sin señal'}\n`;
             responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
-            responseMessage += `🔄 _Respuesta solicitada por el usuario ${userId}_`;
+            responseMessage += `🔄 _Respuesta solicitada por el usuario ${chatId}_`;
 
             // Definir los botones de interacción
             const markup = {
@@ -49,16 +49,13 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 ]
             };
 
-            // Enviar mensaje al chat apropiado (usuario o grupo)
-            if (userId !== undefined && userId !== null) {
+                // Enviar mensaje al chat apropiado (usuario o grupo)
                 if (chatId !== undefined && chatId !== null) {
                     bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
                     console.log(`Respuesta enviada a chatId: ${chatId}`);
-                } else {
-                    bot.telegram.sendMessage(userId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
-                    console.log(`Respuesta enviada a userId: ${userId}`);
-                }
-            }
+                } 
+
+            
             channel.ack(msg);
         }
     });

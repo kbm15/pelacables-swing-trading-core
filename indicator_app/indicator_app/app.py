@@ -44,10 +44,11 @@ class IndicatorWorker:
 
             ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
             ts.update_data()
+            logging.info(f"Last data point: {ts.data.index[-1]}")
             indicator = globals()[task_data['indicator']]()
             indicator.setStrategy(task_data['strategy'])            
 
-            if task_data['backtest']:
+            if task_data['flag'] == 'backtest':
                 logging.info(f"[{self.instance_id}] Backtest task: {body}")
                 
                 logging.debug(f'Starting backtest indicator {task_data['strategy']} on {task_data['ticker']}')

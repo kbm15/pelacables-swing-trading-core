@@ -5,6 +5,8 @@ import { runDatabase } from './db/runDatabase';
 import { insertIndicators, countIndicators } from './db/indicatorQueries';
 import { handleResponse } from './amqp/handleResponse';
 import { handleRequest } from './amqp/handleRequest';
+import { scheduleSuscriptionQueries,handleSuscriptions } from './amqp/handleSuscription';
+
 
 async function main() {    
     await initDatabase();
@@ -20,6 +22,8 @@ async function main() {
 
     handleResponse(channel,client)
     handleRequest(channel,client);
+    handleSuscriptions(channel,client);
+    scheduleSuscriptionQueries(channel,client);
 }
 
 main().catch(console.error);

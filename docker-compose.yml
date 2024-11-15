@@ -8,6 +8,11 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   postgres:
     image: postgres:latest
@@ -30,6 +35,7 @@ services:
       TICKER_REQUEST_QUEUE: ticker_requests
       TICKER_RESPONSE_QUEUE: ticker_responses
       NOTIFICATION_QUEUE: indicator_notifications
+      SUSCRIPTION_QUEUE: indicator_suscriptions
     depends_on:
       - rabbitmq
     restart: on-failure
@@ -44,7 +50,8 @@ services:
       TASK_QUEUE: indicator_tasks
       RESULTS_QUEUE: indicator_results 
       NOTIFICATION_QUEUE: indicator_notifications
-      POSTGRES_HOST: postgres
+      SUSCRIPTION_QUEUE: indicator_suscriptions
+      POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: production_db
