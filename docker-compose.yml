@@ -51,7 +51,7 @@ services:
       RESULTS_QUEUE: indicator_results 
       NOTIFICATION_QUEUE: indicator_notifications
       SUSCRIPTION_QUEUE: indicator_suscriptions
-      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_HOST: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: production_db
