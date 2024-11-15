@@ -5,6 +5,7 @@ import logging
 import json
 import requests  # For signaling the coordinator
 import os
+import numpy as np
 
 
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST')
@@ -35,12 +36,15 @@ class IndicatorWorker:
         # Process the task 
         task_data = json.loads(body.decode('utf-8'))
 
-        result_data = {}
+        result_data = {
+        "flag": task_data.get("flag", ""),
+        "ticker": task_data.get("ticker", ""),
+        "indicator": task_data.get("indicator", ""),
+        "strategy": task_data.get("strategy", ""),
+        "signals": {}
+        }
         if 'ticker' in task_data and 'indicator' in task_data and 'strategy' in task_data:
-            result_data['ticker'] = task_data['ticker']
-            result_data['indicator'] = task_data['indicator']
-            result_data['strategy'] = task_data['strategy']
-            result_data['flag'] = task_data['flag'] 
+
             ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
             ts.update_data()
             logging.info(f"Last data point: {ts.data.index[-1]}")
@@ -59,22 +63,53 @@ class IndicatorWorker:
                     initial_capital=10000.0,
                     purchase_fraction=task_data.get("purchase_fraction", 1.0),
                     sell_fraction=task_data.get("sell_fraction", 1.0),
-                    take_profit=task_data.get("take_profit", 1.00)
+                    take_profit=task_data.get("take_profit", 1.01)
                 )
 
                 result_data['total_return'] = backtester.run_backtest()
-                result_data['signal'] = backtester.get_signal()
+                #raw_signals = backtester.get_signal()  # Signal values as list or array
+                timestamps = backtester.tsdata.data.index  # Timestamps for each signal
+
+                indicator_components = backtester.indicator.components.copy()
+                signals_column = [col for col in indicator_components.columns if col.endswith('_Signal')]
+                raw_signals = indicator_components[signals_column].values
+
+                # Verify that the lengths of timestamps and raw_signals match
+                if len(timestamps) != len(raw_signals):
+                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(raw_signals)})")
+                    logging.error(timestamps)
+                    logging.error(raw_signals)
+                else:
+                    logging.info("Longitudes coinciden")
+
+                for i, timestamp in enumerate(timestamps):
+                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
+                    result_data['signals'][epoch] = raw_signals[i]
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
                 bs = indicator.calculate(ts.data)
-                if bs[-1] == 1:
-                    result_data['signal'] = 'Buy'
-                elif bs[-1] == -1:
-                    result_data['signal'] = 'Sell'
-                else:
-                    result_data['signal'] = 'Hold'
+
+                for i, timestamp in enumerate(ts.data.index):
+                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
+                    signal = bs[i]
+
+                    if signal == 1:
+                        result_data['signals'][epoch] = 1
+                    elif signal == -1:
+                        result_data['signals'][epoch] = -1
+                    else:
+                        result_data['signals'][epoch] = 0
+
+                
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
+
+            # Convert signals to integers in order to serialize
+            # Position -1 because there some arrays that inclused NaN (idkw)
+            result_data['signals'] = {
+                timestamp: int(signal[-1]) if isinstance(signal, np.ndarray) else signal
+                for timestamp, signal in result_data['signals'].items()
+            }
             
             self.channel.basic_publish(
                 exchange='',
