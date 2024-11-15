@@ -1,5 +1,10 @@
 FROM python:3.12 AS builder
 
+ENV POSTGRES_HOST=postgres
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_DB=postgres
+
 RUN pip install poetry==1.8.3
 
 ENV POETRY_NO_INTERACTION=1 \
@@ -22,6 +27,9 @@ RUN ./configure --prefix=/usr && \
 WORKDIR /app/tradingcore
 
 COPY pyproject.toml poetry.lock ./
+RUN poetry lock
+RUN poetry install
+
 RUN touch README.md
 
 COPY tradingcore ./tradingcore

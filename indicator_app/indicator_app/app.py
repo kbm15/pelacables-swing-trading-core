@@ -63,8 +63,20 @@ class IndicatorWorker:
                 )
 
                 backtester.run_backtest()
-                raw_signals = backtester.get_signal()  # Signal values as list or array
-                timestamps = backtester.tsdata.index  # Timestamps for each signal
+                #raw_signals = backtester.get_signal()  # Signal values as list or array
+                timestamps = backtester.tsdata.data.index  # Timestamps for each signal
+
+                indicator_components = backtester.indicator.components.copy()
+                signals_column = [col for col in indicator_components.columns if col.endswith('_Signal')]
+                raw_signals = indicator_components[signals_column].values
+
+                # Verificar que las longitudes coincidan
+                if len(timestamps) != len(raw_signals):
+                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(raw_signals)})")
+                    logging.error(timestamps)
+                    logging.error(raw_signals)
+                else:
+                    logging.info("Longitudes coinciden")
 
                 for i, timestamp in enumerate(timestamps):
                     epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
@@ -87,6 +99,7 @@ class IndicatorWorker:
 
                 
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
+                logging.debug(result_data)
             
             self.channel.basic_publish(
                 exchange='',

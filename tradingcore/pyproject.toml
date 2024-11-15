@@ -14,6 +14,7 @@ pandas-ta = {git = "https://github.com/twopirllc/pandas-ta.git", rev = "developm
 python-decouple = "^3.8"
 ta-lib = "^0.4.32"
 asyncpg = "^0.30.0"
+psycopg2-binary = "^2.9"
 
 [build-system]
 requires = ["poetry-core"]

@@ -5,10 +5,10 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-POSTGRES_HOST = os.getenv('POSTGRES_HOST')
-POSTGRES_DB = os.getenv('POSTGRES_DB')
-POSTGRES_USER = os.getenv('POSTGRES_USER')
-POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 
 
 def connect_db():
@@ -68,7 +68,15 @@ def init_database():
                 PRIMARY KEY (date, ticker, interval)
             )
         """)
-        logging.info("Table DataTimeSeries is ready.")
+        conn.commit()  # Asegúrate de hacer commit
+
+        # Verifica si la tabla fue creada correctamente
+        cursor.execute("""SELECT to_regclass('public.DataTimeSeries');""")
+        result = cursor.fetchone()
+        if result[0] is None:
+            logging.error("Table DataTimeSeries does not exist after creation attempt.")
+        else:
+            logging.info("Table DataTimeSeries exists.")
         
         # Cerrar la conexión a la base de datos
         cursor.close()

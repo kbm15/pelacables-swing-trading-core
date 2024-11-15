@@ -22,7 +22,8 @@ class TimeSeriesData:
             raise ValueError(f"Interval '{interval}' is not allowed. Allowed values are: {', '.join(self.ALLOWED_INTERVALS)}")
         self.interval = interval
         self.period = self.calc_period()
-        self.data = self.load_data().drop_duplicates(subset=['Open'], keep='first')
+        self.data = self.load_data().drop_duplicates(subset=['open'], keep='first')
+        #self.data = self.load_data()
 
     def load_data(self):
 
@@ -66,7 +67,7 @@ class TimeSeriesData:
             INSERT INTO DataTimeSeries (date, ticker, interval, open, high, low, close, volume, dividends, stock_splits)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (date, ticker, interval) DO NOTHING
-            """, (row['Date'], self.ticker, self.interval, row['Open'], row['High'], row['Low'], row['Close'],
+            """, (index, self.ticker, self.interval, row['Open'], row['High'], row['Low'], row['Close'],
                   row['Volume'], row['Dividends'], row['Stock Splits']))
         conn.commit()
         cursor.close()
@@ -90,9 +91,12 @@ class TimeSeriesData:
     def update_data(self):
         # Update data by fetching new data if needed
         last_date = self.data.index[-1]
-        last_date_dt = pd.to_datetime(last_date)        
+        last_date_dt = pd.to_datetime(last_date).tz_localize('UTC')        
         cutoff_date = self.calculate_cutoff_date()
         self.delete_old_data(cutoff_date)
+
+        if cutoff_date.tzinfo is None:
+            cutoff_date = cutoff_date.replace(tzinfo=timezone.utc)
 
         if last_date_dt < cutoff_date:
             logging.debug("Last data point is before cutoff date. Fetching new data for the entire period.")
