@@ -67,41 +67,28 @@ class IndicatorWorker:
                 )
 
                 result_data['total_return'] = backtester.run_backtest()
-                #raw_signals = backtester.get_signal()  # Signal values as list or array
-                timestamps = backtester.tsdata.data.index  # Timestamps for each signal
-
-                indicator_components = backtester.indicator.components.copy()
-                signals_column = [col for col in indicator_components.columns if col.endswith('_Signal')]
-                raw_signals = indicator_components[signals_column].values
-
-                # Verify that the lengths of timestamps and raw_signals match
-                if len(timestamps) != len(raw_signals):
-                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(raw_signals)})")
-                    logging.error(timestamps)
-                    logging.error(raw_signals)
+                timestamps = backtester.get_timestamps()
+                data = backtester.data.copy()
+                
+                if len(timestamps) != len(data):
+                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(data)})")
                 else:
-                    logging.info("Longitudes coinciden")
-
-                for i, timestamp in enumerate(timestamps):
-                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
-                    result_data['signals'][epoch] = raw_signals[i]
+                    signal = 0
+                    for i in range(len(timestamps)):
+                        if data[i] != signal:
+                            signal = data[i]
+                            result_data['signals'][int(timestamps[i].timestamp())] = signal
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
                 bs = indicator.calculate(ts.data)
 
-                for i, timestamp in enumerate(ts.data.index):
-                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
-                    signal = bs[i]
-
-                    if signal == 1:
-                        result_data['signals'][epoch] = 1
-                    elif signal == -1:
-                        result_data['signals'][epoch] = -1
-                    else:
-                        result_data['signals'][epoch] = 0
-
-                
+                signal = 0
+                for i in range(len(bs)):
+                    if bs[-i] != signal: 
+                        signal = bs[i]
+                        result_data['signals'][int(ts.data.index[-i].timestamp())] = signal
+                        break
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
 
             # Convert signals to integers in order to serialize

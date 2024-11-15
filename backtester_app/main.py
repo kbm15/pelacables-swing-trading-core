@@ -5,7 +5,6 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 import logging
 import json
-from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import List, Dict
 
@@ -81,7 +80,7 @@ class ResultAggregator:
                 self.responses[ticker]['results'],
                 key=lambda r: r.get('total_return', 0)
             )
-            print(f"Best result for {ticker}: {best_result}")
+            logging.info(f"Best result for {ticker}: {best_result}")
             del self.responses[ticker]  # Clear data once processed
 
 class IndicatorWorker:
@@ -108,6 +107,15 @@ class IndicatorWorker:
 
         # Run the backtest and get the total return
         total_return = backtester.run_backtest()
+
+        timestamps = backtester.get_timestamps()
+        data = backtester.data.copy()
+        signals = {}
+        signal = 0
+        for i in range(len(timestamps)):
+            if data[i] != signal:
+                signal = data[i]
+                signals[int(timestamps[i].timestamp())] = data[i]
         
         result_data = {
             "ticker": self.task["ticker"],
@@ -116,13 +124,15 @@ class IndicatorWorker:
             "take_profit": self.task["take_profit"],
             "purchase_fraction": self.task["purchase_fraction"],
             "sell_fraction": self.task["sell_fraction"],
-            "total_return": total_return
+            "total_return": total_return,
+            "signals": signals
         }
+        
         logging.debug(f"Completed task with result: {result_data}")
         return result_data
 
 def main():
-    ticker = 'ACS'  # Single ticker for testing
+    ticker = 'NVDA'  # Single ticker for testing
     indicators_strategies_path = "indicators_strategies.json"
     
     # Load TimeSeriesData once and share it across tasks
@@ -133,7 +143,7 @@ def main():
     tasks, _ = load_tasks([ticker], indicators_strategies_path)
     result_aggregator = ResultAggregator({ticker: len(tasks)})
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = [executor.submit(IndicatorWorker(task, ts).process_task) for task in tasks]
         for future in as_completed(futures):
             result = future.result()
