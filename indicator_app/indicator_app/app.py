@@ -104,7 +104,6 @@ class IndicatorWorker:
                     delivery_mode=2,  # make message persistent
                 )
             )
-        time.sleep(1)
         # Acknowledge message processing
         ch.basic_ack(delivery_tag=method.delivery_tag)
         # self.report_status()
