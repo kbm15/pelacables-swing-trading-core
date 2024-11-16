@@ -21,7 +21,6 @@ async function recordOperation(operation: Operation, client: PostgresClient) {
     ];
     
     await client.query(query, values);
-    console.log(`Recorded operation for ticker ${operation.ticker}: ${operation.operation}.`);
 
 }
 
@@ -50,7 +49,6 @@ export async function recordLastOperation(operation: Operation, client: Postgres
     if(operation.operation === 'Buy' || operation.operation === 'Sell'){
         await recordOperation(operation, client);        
     }
-    console.log(`Recorded last operation for ticker ${operation.ticker}: ${operation.operation}.`);
 
 }
 

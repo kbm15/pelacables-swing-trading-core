@@ -49,8 +49,9 @@ class IndicatorWorker:
             ts.update_data()
             logging.info(f"Last data point: {ts.data.index[-1]}")
             indicator = globals()[task_data['indicator']]()
-            indicator.setStrategy(task_data['strategy'])            
+            indicator.setStrategy(task_data['strategy'])  
 
+            # Run backtest
             if task_data['flag'] == 'backtest':
                 logging.info(f"[{self.instance_id}] Backtest task: {body}")
                 
@@ -77,18 +78,22 @@ class IndicatorWorker:
                     for i in range(len(timestamps)):
                         if data[i] != signal:
                             signal = data[i]
-                            result_data['signals'][str(timestamps[i].timestamp())] = signal
+                            result_data['signals'][str(timestamps[i].timestamp()*1000)] = signal
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
+
+            # Run indicator
             else:
                 bs = indicator.calculate(ts.data)
-
-                signal = 0
-                for i in range(len(bs)):
-                    if bs.iloc[-i] != signal: 
-                        signal = bs.iloc[-i]
-                        result_data['signals'] = {str(ts.data.index[-i].timestamp()):signal}
-                        break
+                
+                signal = bs.iloc[-1]
+                result_data['signals'] = {str(ts.data.index[-1].timestamp()*1000):bs.iloc[-1]}
+                if signal == 0:
+                    for i in range(len(bs)):
+                        if bs.iloc[-i] != signal: 
+                            signal = bs.iloc[-i]
+                            result_data['signals'].update({str(ts.data.index[-i].timestamp()*1000):signal})
+                            break
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
             logging.info(f"Result data: {result_data}")
             self.channel.basic_publish(

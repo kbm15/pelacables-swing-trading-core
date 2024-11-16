@@ -13,6 +13,7 @@ import { DateTime } from 'luxon';
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const pendingRequests: Request[] = [];
 
+
 export function answerRequest(channel: Channel, response: Response, ) {
     const answeringRequests: Request[] = [...pendingRequests];
     pendingRequests.length = 0;
@@ -21,8 +22,6 @@ export function answerRequest(channel: Channel, response: Response, ) {
             const signalKeys = Object.keys(response.signals);
             const lastSignalKey = Number(signalKeys[signalKeys.length - 1]);
             const lastSignal = { [lastSignalKey]: response.signals[lastSignalKey] };
-            console.log(response.signals);   
-            console.log(lastSignal);
             
             const message = JSON.stringify({
                 ticker: response.ticker,
@@ -32,6 +31,7 @@ export function answerRequest(channel: Channel, response: Response, ) {
                 total_return: response.total_return,
                 chatId: request.chatId
             });
+            console.log(`Answering request ${request.ticker} with ${message}`);
             if (request.flag === 'notification') {
                 sendNotification(channel,Buffer.from(message));
             } else {
@@ -146,7 +146,11 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                             total_return: bestIndicator.total_return,
                             chatId: chatId !== null ? chatId : userId
                         };
-                        channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(JSON.stringify(response)), { persistent: false });
+                        if (source === 'notification') {
+                            sendNotification(channel,Buffer.from(JSON.stringify(response)));
+                        } else {
+                            channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(JSON.stringify(response)), { persistent: false });
+                        }                        
                     } else {
                         console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is within times for NYSE open and close`);
                         const request: Request = { 

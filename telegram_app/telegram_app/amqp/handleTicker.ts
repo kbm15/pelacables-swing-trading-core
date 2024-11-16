@@ -35,7 +35,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             const signal = Object.entries(signals)[0][1];
             const signalString = signal === 1 ? 'Comprar' : signal === -1 ? 'Vender' : 'Mantener';
-            const date = new Date(Number(Object.entries(signals)[0][0])*1000);
+            const date = new Date(Number(Object.entries(signals)[0][0]));
 
             console.log(`Señal ${signal} el ${date}`)
 
