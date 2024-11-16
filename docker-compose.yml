@@ -30,7 +30,7 @@ services:
     build: ./telegram_app
     container_name: telegram-app
     environment:
-      TELEGRAM_TOKEN: 8105422842:AAEcEs4PbEW1bfd192BOds_Mhiw8JY5Vf5E
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN_BETA}
       RABBITMQ_HOST: amqp://rabbitmq
       TICKER_REQUEST_QUEUE: ticker_requests
       TICKER_RESPONSE_QUEUE: ticker_responses
@@ -51,7 +51,7 @@ services:
       RESULTS_QUEUE: indicator_results 
       NOTIFICATION_QUEUE: indicator_notifications
       SUSCRIPTION_QUEUE: indicator_suscriptions
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: production_db
