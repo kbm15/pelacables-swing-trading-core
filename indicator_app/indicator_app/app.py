@@ -2,15 +2,15 @@ from tradingcore import TimeSeriesData, Backtester,AwesomeOscillator,BollingerBa
 import pika
 import time
 import logging
-import json
 import requests  # For signaling the coordinator
 import os
 import numpy as np
+import orjson
 
 
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST')
-TASK_QUEUE = os.getenv('TASK_QUEUE')
-RESULTS_QUEUE = os.getenv('RESULTS_QUEUE')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+TASK_QUEUE = os.getenv('TASK_QUEUE', 'indicator_tasks')
+RESULTS_QUEUE = os.getenv('RESULTS_QUEUE', 'indicator_results')
 
 print("Configuration Loaded:")
 print(f"RABBITMQ_HOST = {RABBITMQ_HOST}")
@@ -34,7 +34,7 @@ class IndicatorWorker:
     def process_task(self, ch, method, properties, body):
         logging.info(f"[{self.instance_id}] Processing task: {body}")
         # Process the task 
-        task_data = json.loads(body.decode('utf-8'))
+        task_data = orjson.loads(body.decode('utf-8'))
 
         result_data = {
         "flag": task_data.get("flag", ""),
@@ -67,54 +67,34 @@ class IndicatorWorker:
                 )
 
                 result_data['total_return'] = backtester.run_backtest()
-                #raw_signals = backtester.get_signal()  # Signal values as list or array
-                timestamps = backtester.tsdata.data.index  # Timestamps for each signal
-
-                indicator_components = backtester.indicator.components.copy()
-                signals_column = [col for col in indicator_components.columns if col.endswith('_Signal')]
-                raw_signals = indicator_components[signals_column].values
-
-                # Verify that the lengths of timestamps and raw_signals match
-                if len(timestamps) != len(raw_signals):
-                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(raw_signals)})")
-                    logging.error(timestamps)
-                    logging.error(raw_signals)
+                timestamps = backtester.get_timestamps()
+                data = backtester.data.copy()
+                
+                if len(timestamps) != len(data):
+                    logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(data)})")
                 else:
-                    logging.info("Longitudes coinciden")
-
-                for i, timestamp in enumerate(timestamps):
-                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
-                    result_data['signals'][epoch] = raw_signals[i]
+                    signal = 0
+                    for i in range(len(timestamps)):
+                        if data[i] != signal:
+                            signal = data[i]
+                            result_data['signals'][str(timestamps[i].timestamp())] = signal
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
                 bs = indicator.calculate(ts.data)
 
-                for i, timestamp in enumerate(ts.data.index):
-                    epoch = int(timestamp.tz_convert('UTC').timestamp())  # Convert to epoch
-                    signal = bs[i]
-
-                    if signal == 1:
-                        result_data['signals'][epoch] = 1
-                    elif signal == -1:
-                        result_data['signals'][epoch] = -1
-                    else:
-                        result_data['signals'][epoch] = 0
-
-                
+                signal = 0
+                for i in range(len(bs)):
+                    if bs.iloc[-i] != signal: 
+                        signal = bs.iloc[-i]
+                        result_data['signals'] = {str(ts.data.index[-i].timestamp()):signal}
+                        break
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
-
-            # Convert signals to integers in order to serialize
-            # Position -1 because there some arrays that inclused NaN (idkw)
-            result_data['signals'] = {
-                timestamp: int(signal[-1]) if isinstance(signal, np.ndarray) else signal
-                for timestamp, signal in result_data['signals'].items()
-            }
-            
+            logging.info(f"Result data: {result_data}")
             self.channel.basic_publish(
                 exchange='',
                 routing_key=RESULTS_QUEUE,
-                body=json.dumps(result_data),
+                body=orjson.dumps(result_data, default=str),
                 properties=pika.BasicProperties(
                     delivery_mode=2,  # make message persistent
                 )

@@ -8,6 +8,7 @@ async function recordOperation(operation: Operation, client: PostgresClient) {
     const query = `
         INSERT INTO Operations (ticker, operation, indicator, timestamp)
         VALUES ($1, $2, (SELECT indicator_id FROM Indicators WHERE name = $3 AND strategy = $4), $5)
+        ON CONFLICT (ticker, timestamp) DO NOTHING
     `;
 
 

@@ -1,6 +1,6 @@
 from tradingcore.data.timeseries import TimeSeriesData
 from tradingcore.indicators.base import BaseIndicator
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 
 # Configure logging
@@ -71,3 +71,10 @@ class Backtester:
                 return 'Hold'
         else:
             return None
+    
+    def get_timestamps(self):
+        last_date = self.tsdata.data.index[-1]
+        period_delta = last_date - timedelta(days=self.days)
+        period_delta_idx = self.tsdata.data.index.searchsorted(period_delta)
+        timestamps = self.tsdata.data.index[period_delta_idx:].tolist()
+        return timestamps

@@ -55,9 +55,9 @@ def init_database():
         # Crear la tabla DataTimeSeries si no existe
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS DataTimeSeries (
-                date DATE NOT NULL,
-                ticker VARCHAR(10) NOT NULL,
-                interval VARCHAR(10) NOT NULL,
+                date TIMESTAMPTZ NOT NULL,
+                ticker TEXT NOT NULL,
+                interval TEXT NOT NULL,
                 open FLOAT NOT NULL,
                 high FLOAT NOT NULL,
                 low FLOAT NOT NULL,

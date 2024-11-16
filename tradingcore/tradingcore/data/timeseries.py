@@ -22,91 +22,87 @@ class TimeSeriesData:
             raise ValueError(f"Interval '{interval}' is not allowed. Allowed values are: {', '.join(self.ALLOWED_INTERVALS)}")
         self.interval = interval
         self.period = self.calc_period()
-        self.data = self.load_data().drop_duplicates(subset=['open'], keep='first')
-        #self.data = self.load_data()
+        self.conn = connect_db()
+        self.data = self.load_data().drop_duplicates(subset=['Open'], keep='first')
+        
 
     def load_data(self):
 
-        # Load data from PostgreSQL if available
-        conn = connect_db()
         query = """
-        SELECT * FROM DataTimeSeries
+        SELECT date, open, high, low, close, volume
+        FROM DataTimeSeries
         WHERE ticker = %s AND interval = %s
         ORDER BY date ASC
         """
         try:
-            data = pd.read_sql(query, conn, params=(self.ticker, self.interval))
-            conn.close()
+            data = pd.read_sql_query(query, self.conn, index_col='date', params=(self.ticker, self.interval))
             if not data.empty:
-                logging.debug(f"Loaded data from PostgreSQL for {self.ticker} with interval {self.interval}")
+                logging.info(f"Loaded data from PostgreSQL for {self.ticker} with interval {self.interval}")        
+   
+                data = data.rename(columns={'open': 'Open', 'close': 'Close', 'high': 'High', 'low': 'Low', 'volume': 'Volume'})
                 return data
             else:
-                logging.debug(f"No data found in PostgreSQL for {self.ticker} with interval {self.interval}")
-                return self.fetch_new_data()
+                logging.info(f"No data found in PostgreSQL for {self.ticker} with interval {self.interval}")
+                new_data = self.fetch_new_data()
+                return new_data
         except Exception as e:
             logging.error(f"Error loading data from PostgreSQL: {e}")
-            conn.close()
-            return self.fetch_new_data()
+            new_data = self.fetch_new_data()
+            return new_data
 
     def fetch_new_data(self):
         # Fetch new data from Yahoo Finance
-        logging.debug(f"Fetching new data for {self.ticker} with interval {self.interval} and period {self.period}")
+        logging.info(f"Fetching new data for {self.ticker} with interval {self.interval} and period {self.period}")
         data = fetch_yahoo_finance_data(self.ticker, self.interval, self.period)
         self.cache_data(data)
         return data
 
     def cache_data(self, data):
 
-        # Cache the fetched data into PostgreSQL
-        conn = connect_db()
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
 
         # Insert the data into PostgreSQL table
         for index, row in data.iterrows():
             cursor.execute("""
-            INSERT INTO DataTimeSeries (date, ticker, interval, open, high, low, close, volume, dividends, stock_splits)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO DataTimeSeries (date, ticker, interval, open, high, low, close, volume)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (date, ticker, interval) DO NOTHING
             """, (index, self.ticker, self.interval, row['Open'], row['High'], row['Low'], row['Close'],
-                  row['Volume'], row['Dividends'], row['Stock Splits']))
-        conn.commit()
+                  row['Volume']))
+        self.conn.commit()
         cursor.close()
-        conn.close()
-        logging.debug(f"Cached data to PostgreSQL for {self.ticker} with interval {self.interval}")
+        logging.info(f"Cached data to PostgreSQL for {self.ticker} with interval {self.interval}")
 
     
     def delete_old_data(self, cutoff_date):
         # Delete data older than cutoff_date
         logging.debug(f"Deleting data older than {cutoff_date}")
-        conn = connect_db()
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         cursor.execute("""
         DELETE FROM DataTimeSeries
         WHERE date < %s AND ticker = %s AND interval = %s
         """, (cutoff_date, self.ticker, self.interval))
-        conn.commit()
+        self.conn.commit()
         cursor.close()
-        conn.close()
 
     def update_data(self):
         # Update data by fetching new data if needed
-        last_date = self.data.index[-1]
-        last_date_dt = pd.to_datetime(last_date).tz_localize('UTC')        
+        last_date = pd.to_datetime(self.data.index[-1])
         cutoff_date = self.calculate_cutoff_date()
         self.delete_old_data(cutoff_date)
 
-        if cutoff_date.tzinfo is None:
-            cutoff_date = cutoff_date.replace(tzinfo=timezone.utc)
-
-        if last_date_dt < cutoff_date:
+        if last_date < cutoff_date:
             logging.debug("Last data point is before cutoff date. Fetching new data for the entire period.")
             self.data = self.fetch_new_data().drop_duplicates(subset=['Open'], keep='first')
-        elif timedelta(hours=1) >= (datetime.now(timezone.utc) - last_date_dt):
-            logging.debug("Last data point is after cutoff date. Fetching incremental data.")
-            new_data = fetch_yahoo_finance_data(ticker=self.ticker, start=last_date, end=datetime.now(timezone.utc).strftime('%Y-%m-%d'), interval=self.interval)
-            self.data = pd.concat([self.data, new_data]).drop_duplicates(subset=['Open'], keep='first')
+        else:
+            new_data = fetch_yahoo_finance_data(ticker=self.ticker, start=last_date, interval=self.interval)
+            if (new_data.index[-1] - last_date) >= timedelta(hours=1) :
+                logging.debug("Last data point is after cutoff date. Fetching incremental data.")                
+                self.data = pd.concat([self.data, new_data]).drop_duplicates(subset=['Open'], keep='first')
+                self.data.index = pd.to_datetime(self.data.index)
             
         self.cache_data(self.data)
+        self.conn.close()
 
     def calc_period(self):
         # Calculate the period based on interval
