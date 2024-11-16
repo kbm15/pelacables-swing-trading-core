@@ -2,15 +2,15 @@ from tradingcore import TimeSeriesData, Backtester,AwesomeOscillator,BollingerBa
 import pika
 import time
 import logging
-import json
 import requests  # For signaling the coordinator
 import os
 import numpy as np
+import orjson
 
 
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST')
-TASK_QUEUE = os.getenv('TASK_QUEUE')
-RESULTS_QUEUE = os.getenv('RESULTS_QUEUE')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+TASK_QUEUE = os.getenv('TASK_QUEUE', 'indicator_tasks')
+RESULTS_QUEUE = os.getenv('RESULTS_QUEUE', 'indicator_results')
 
 print("Configuration Loaded:")
 print(f"RABBITMQ_HOST = {RABBITMQ_HOST}")
@@ -34,7 +34,7 @@ class IndicatorWorker:
     def process_task(self, ch, method, properties, body):
         logging.info(f"[{self.instance_id}] Processing task: {body}")
         # Process the task 
-        task_data = json.loads(body.decode('utf-8'))
+        task_data = orjson.loads(body.decode('utf-8'))
 
         result_data = {
         "flag": task_data.get("flag", ""),
@@ -77,7 +77,7 @@ class IndicatorWorker:
                     for i in range(len(timestamps)):
                         if data[i] != signal:
                             signal = data[i]
-                            result_data['signals'][int(timestamps[i].timestamp())] = signal
+                            result_data['signals'][str(timestamps[i].timestamp())] = signal
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
             else:
@@ -85,23 +85,16 @@ class IndicatorWorker:
 
                 signal = 0
                 for i in range(len(bs)):
-                    if bs[-i] != signal: 
-                        signal = bs[i]
-                        result_data['signals'][int(ts.data.index[-i].timestamp())] = signal
+                    if bs.iloc[-i] != signal: 
+                        signal = bs.iloc[-i]
+                        result_data['signals'] = {str(ts.data.index[-i].timestamp()):signal}
                         break
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
-
-            # Convert signals to integers in order to serialize
-            # Position -1 because there some arrays that inclused NaN (idkw)
-            result_data['signals'] = {
-                timestamp: int(signal[-1]) if isinstance(signal, np.ndarray) else signal
-                for timestamp, signal in result_data['signals'].items()
-            }
-            
+            logging.info(f"Result data: {result_data}")
             self.channel.basic_publish(
                 exchange='',
                 routing_key=RESULTS_QUEUE,
-                body=json.dumps(result_data),
+                body=orjson.dumps(result_data, default=str),
                 properties=pika.BasicProperties(
                     delivery_mode=2,  # make message persistent
                 )

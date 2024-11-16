@@ -3,7 +3,7 @@ import type { Channel } from 'amqplib';
 import { Client as PostgresClient } from 'pg';
 import { TICKER_REQUEST_QUEUE, TICKER_RESPONSE_QUEUE, TASK_QUEUE } from '../config';
 import { getBestIndicator, getAllIndicators} from '../db/indicatorQueries';
-import { getLastOperation } from '../db/operationsQueries';
+import { getLastOperation, getOperation } from '../db/operationsQueries';
 import { addTickerToResponseAggregator } from './handleResponse';
 import { sendNotification } from './handleSuscription';
 import type { Response, Request } from '../types';
@@ -18,11 +18,17 @@ export function answerRequest(channel: Channel, response: Response, ) {
     pendingRequests.length = 0;
     for (const request of answeringRequests) {
         if (request.ticker == response.ticker) {
+            const signalKeys = Object.keys(response.signals);
+            const lastSignalKey = Number(signalKeys[signalKeys.length - 1]);
+            const lastSignal = { [lastSignalKey]: response.signals[lastSignalKey] };
+            console.log(response.signals);   
+            console.log(lastSignal);
+            
             const message = JSON.stringify({
                 ticker: response.ticker,
                 indicator: response.indicator,
                 strategy: response.strategy,
-                signal: response.signal,
+                signals: lastSignal,
                 total_return: response.total_return,
                 chatId: request.chatId
             });
@@ -126,22 +132,21 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                     .set({ hour: 9, minute: 30, second: 0, millisecond: 0 });
 
                     const lastOperationTimestamp = DateTime.fromJSDate(lastOperation.timestamp).setZone("America/New_York");
-
+                    const operation = await getOperation(ticker, client);
                     // Check if the last operation's timestamp is within the specified range
                     //if (lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) {
                     if ((lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) || lastOperationTimestamp < DateTime.now().minus({ hours: 1 })) {                    
                         console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is not within times for NYSE open and close or more than 1 hour ago`);
-                        const response = JSON.stringify({ 
+                        const response : Response = { 
                             ticker: ticker,
                             indicator: lastOperation.indicator,
                             strategy: lastOperation.strategy,
-                            signal: lastOperation.operation,
-                            timestamp: lastOperation.timestamp,
+                            flag: source,
+                            signals: { [lastOperation.timestamp.getTime()]: operation?.operation === 'Buy' ? 1 : operation?.operation === 'Sell' ? -1 : 0 },
                             total_return: bestIndicator.total_return,
-                            chatId,
-                            userId 
-                        });
-                        channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(response), { persistent: false });
+                            chatId: chatId !== null ? chatId : userId
+                        };
+                        channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(JSON.stringify(response)), { persistent: false });
                     } else {
                         console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is within times for NYSE open and close`);
                         const request: Request = { 
