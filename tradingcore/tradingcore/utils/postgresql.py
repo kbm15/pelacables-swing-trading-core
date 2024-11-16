@@ -5,8 +5,8 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "timeseries_db")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 
@@ -21,7 +21,7 @@ def connect_db():
             host=POSTGRES_HOST,
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD,
-            database=POSTGRES_DB
+            database='postgres'
         )
         return conn
     except Exception as error:
