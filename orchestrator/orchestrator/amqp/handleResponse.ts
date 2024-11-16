@@ -40,11 +40,15 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                             updatedAt: new Date() 
                         };
                         await saveBestIndicator(tickerIndicator, client);
+
                         for (const [timestamp, signal] of Object.entries(bestResponse.signals)) {
                             const signalString = signal === 1 ? 'Buy' : signal === -1 ? 'Sell' : 'Hold';
                             const operation: Operation = { ticker: response.ticker, operation: signalString, indicator: bestResponse.indicator, strategy: bestResponse.strategy, timestamp: new Date(Number(timestamp)) };                        
                             await recordLastOperation(operation, client);
                         };      
+                        bestResponse.signals = Object.fromEntries(
+                            Object.entries(bestResponse.signals).filter(([_, signal]) => signal !== 0)
+                        );
                         answerRequest(channel, bestResponse);
                         delete responseAggregator[response.ticker];
                     }
@@ -57,6 +61,9 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                     const operation: Operation = { ticker: response.ticker, operation: signalString, indicator: response.indicator, strategy: response.strategy, timestamp: new Date(Number(timestamp)) };                        
                     await recordLastOperation(operation, client);
                 };
+                response.signals = Object.fromEntries(
+                    Object.entries(response.signals).filter(([_, signal]) => signal !== 0)
+                );
                 const bestIndicator = await getBestIndicator(response.ticker, client);
                 if(response.flag === 'notification') {
                     if (bestIndicator !== null) {
