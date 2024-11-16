@@ -5,6 +5,16 @@ import { loadEnvVariable } from '../utils/loadEnv';
 const TICKER_REQUEST_QUEUE = loadEnvVariable('TICKER_REQUEST_QUEUE');
 const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
 
+interface Response {
+    ticker: string;
+    indicator: string;
+    strategy: string;
+    flag: 'simple' | 'backtest' | 'notification';
+    signals: { [timestamp: number]: number };
+    total_return: number;
+    chatId: number | null;
+}
+
 // Send a ticker request to the queue
 export async function sendTickerRequest(userId: number, ticker: string, channel: Channel, chatId?: number) {
     const message = JSON.stringify({ userId, ticker, chatId: chatId || null, source: 'simple' });
@@ -17,24 +27,24 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
     channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
         if (msg) {
             console.log(`Respuesta de ticker recibida: ${msg.content.toString()}`);
-            const response = JSON.parse(msg.content.toString());
+            const responseJson = JSON.parse(msg.content.toString());
+            responseJson.signals = Object.fromEntries(Object.entries(responseJson.signals).map(([timestamp, signal]) => [Number(timestamp), Number(signal)]));
+            const response: Response = responseJson;
 
-            for (const key in response) {
-                if (response[key] === undefined) {
-                    console.log(`Clave indefinida en la respuesta: ${key}`);
-                    channel.ack(msg);
-                    return;
-                }
-                continue;
-            }
+            const { ticker, indicator, strategy, signals, total_return, chatId } = response;
 
-            const { ticker, indicator, strategy, signal, total_return, chatId } = response;
+            const signal = Object.entries(signals)[0][1];
+            const signalString = signal === 1 ? 'Comprar' : signal === -1 ? 'Vender' : 'Mantener';
+            const date = new Date(Number(Object.entries(signals)[0][0])*1000);
+
+            console.log(`Señal ${signal} el ${date}`)
 
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
             responseMessage += `📌 **Indicador:** *${indicator}*\n`;
             responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
-            responseMessage += `🔔 **Señal:** ${signal ? `*${signal}*` : 'Sin señal'}\n`;
+            
+            responseMessage += `🔔 **Señal:** ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
             responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
             responseMessage += `🔄 _Respuesta solicitada por el usuario ${chatId}_`;
 
@@ -49,11 +59,11 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 ]
             };
 
-                // Enviar mensaje al chat apropiado (usuario o grupo)
-                if (chatId !== undefined && chatId !== null) {
-                    bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
-                    console.log(`Respuesta enviada a chatId: ${chatId}`);
-                } 
+            // Enviar mensaje al chat apropiado (usuario o grupo)
+            if (chatId !== undefined && chatId !== null) {
+                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
+                console.log(`Respuesta enviada a chatId: ${chatId}`);
+            } 
 
             
             channel.ack(msg);

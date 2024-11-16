@@ -13,7 +13,9 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
     channel.consume(RESULTS_QUEUE, async (msg) => {
         if (msg) {
             console.log(`Response received: ${msg.content.toString()}`);
-            const response: Response = JSON.parse(msg.content.toString());
+            const responseJson = JSON.parse(msg.content.toString());
+            responseJson.signals = Object.fromEntries(Object.entries(responseJson.signals).map(([timestamp, signal]) => [Number(timestamp), Number(signal)]));
+            const response: Response = responseJson;
 
             if (response.flag === 'backtest') {
                 if(responseAggregator[response.ticker]){
@@ -37,9 +39,12 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                             createdAt: new Date(),
                             updatedAt: new Date() 
                         };
-                        const operation: Operation = { ticker: response.ticker, operation: bestResponse.signal, indicator: bestResponse.indicator, strategy: bestResponse.strategy, timestamp: new Date() };                        
                         await saveBestIndicator(tickerIndicator, client);
-                        await recordLastOperation(operation, client);
+                        for (const [timestamp, signal] of Object.entries(bestResponse.signals)) {
+                            const signalString = signal === 1 ? 'Buy' : signal === -1 ? 'Sell' : 'Hold';
+                            const operation: Operation = { ticker: response.ticker, operation: signalString, indicator: bestResponse.indicator, strategy: bestResponse.strategy, timestamp: new Date(Number(timestamp)) };                        
+                            await recordLastOperation(operation, client);
+                        };      
                         answerRequest(channel, bestResponse);
                         delete responseAggregator[response.ticker];
                     }
@@ -47,8 +52,11 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                     console.error(`Not aggregating responses for ${response.ticker} but received request.`)
                 }
             } else {
-                const operation: Operation = { ticker: response.ticker, operation: response.signal, indicator: response.indicator, strategy: response.strategy, timestamp: new Date() };                                
-                await recordLastOperation(operation, client);
+                for (const [timestamp, signal] of Object.entries(response.signals)) {
+                    const signalString = signal === 1 ? 'Buy' : signal === -1 ? 'Sell' : 'Hold';
+                    const operation: Operation = { ticker: response.ticker, operation: signalString, indicator: response.indicator, strategy: response.strategy, timestamp: new Date(Number(timestamp)) };                        
+                    await recordLastOperation(operation, client);
+                };
                 const bestIndicator = await getBestIndicator(response.ticker, client);
                 if(response.flag === 'notification') {
                     if (bestIndicator !== null) {
@@ -57,7 +65,7 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                             indicator: response.indicator,
                             strategy: response.strategy,
                             flag: 'notification',
-                            signal: response.signal,
+                            signals: response.signals,
                             total_return: bestIndicator.total_return,
                             chatId: response.chatId
                         }; 
@@ -73,7 +81,7 @@ export async function handleResponse(channel: Channel,client: PostgresClient): P
                             indicator: response.indicator,
                             strategy: response.strategy,
                             flag: 'simple',
-                            signal: response.signal,
+                            signals: response.signals,
                             total_return: bestIndicator.total_return,
                             chatId: response.chatId
                         }; 

@@ -6,12 +6,13 @@ export interface Request {
     chatId: number;
 }
 
+
 export interface Response {
     ticker: string;
     indicator: string;
     strategy: string;
     flag: 'simple' | 'backtest' | 'notification';
-    signal: string;
+    signals: { [timestamp: number]: number };
     total_return: number;
     chatId: number | null;
 }

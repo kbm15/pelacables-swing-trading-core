@@ -5,7 +5,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
@@ -55,9 +55,9 @@ def init_database():
         # Crear la tabla DataTimeSeries si no existe
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS DataTimeSeries (
-                date DATE NOT NULL,
-                ticker VARCHAR(10) NOT NULL,
-                interval VARCHAR(10) NOT NULL,
+                date TIMESTAMPTZ NOT NULL,
+                ticker TEXT NOT NULL,
+                interval TEXT NOT NULL,
                 open FLOAT NOT NULL,
                 high FLOAT NOT NULL,
                 low FLOAT NOT NULL,

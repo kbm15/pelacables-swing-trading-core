@@ -22,7 +22,7 @@ export async function initDatabase() {
             await client.end();
         } else {
             console.error('Failed to create PostgreSQL database:', error);
-            console.log('Username:', POSTGRES_USER);
+            console.log(`Host: ${POSTGRES_HOST}, User: ${POSTGRES_USER}, Password: ${POSTGRES_PASSWORD}`);
             process.exit(1);
         }
     }
