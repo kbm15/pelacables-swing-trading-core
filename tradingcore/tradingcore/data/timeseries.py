@@ -1,10 +1,7 @@
 import pandas as pd
-import os
-import pickle
 from datetime import datetime, timedelta, timezone
 import logging
 from tradingcore.utils.yahoo_finance import fetch_yahoo_finance_data
-from tradingcore.utils.postgresql import init_database, connect_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -12,17 +9,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class TimeSeriesData:
     ALLOWED_INTERVALS = {'1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d'}
 
-    def __init__(self, ticker: str, interval: str):
+    def __init__(self, ticker: str, interval: str, db_connection):
 
-        # Initialize postgresql database
-        init_database()
 
         self.ticker = ticker
         if interval not in self.ALLOWED_INTERVALS:
             raise ValueError(f"Interval '{interval}' is not allowed. Allowed values are: {', '.join(self.ALLOWED_INTERVALS)}")
         self.interval = interval
         self.period = self.calc_period()
-        self.conn = connect_db()
+        self.conn = db_connection
         self.data = self.load_data().drop_duplicates(subset=['Open'], keep='first')
         
 
@@ -102,7 +97,6 @@ class TimeSeriesData:
                 self.data.index = pd.to_datetime(self.data.index)
             
         self.cache_data(self.data)
-        self.conn.close()
 
     def calc_period(self):
         # Calculate the period based on interval

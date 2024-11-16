@@ -1,21 +1,28 @@
-from tradingcore import TimeSeriesData, Backtester,AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
+from tradingcore import TimeSeriesData, Backtester, connect_db, init_database, AwesomeOscillator,BollingerBands,IchimokuCloud,KeltnerChannel,MovingAverage,MACD,PSAR,RSI,StochasticOscillator,VolumeIndicator,Hold
+
 import pika
-import time
 import logging
 import requests  # For signaling the coordinator
 import os
-import numpy as np
 import orjson
 
 
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 TASK_QUEUE = os.getenv('TASK_QUEUE', 'indicator_tasks')
 RESULTS_QUEUE = os.getenv('RESULTS_QUEUE', 'indicator_results')
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "timeseries_db")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
 
 print("Configuration Loaded:")
 print(f"RABBITMQ_HOST = {RABBITMQ_HOST}")
 print(f"TASK_QUEUE = {TASK_QUEUE}")
 print(f"RESULTS_QUEUE = {RESULTS_QUEUE}")
+print(f"POSTGRES_HOST = {POSTGRES_HOST}")
+print(f"POSTGRES_DB = {POSTGRES_DB}")
+print(f"POSTGRES_USER = {POSTGRES_USER}")
+print(f"POSTGRES_PASSWORD = {POSTGRES_PASSWORD}")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,6 +38,7 @@ class IndicatorWorker:
         # Set QoS for load balancing
         self.channel.basic_qos(prefetch_count=1)
 
+        self.db_connection = connect_db(POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)
     def process_task(self, ch, method, properties, body):
         logging.info(f"[{self.instance_id}] Processing task: {body}")
         # Process the task 
@@ -45,7 +53,7 @@ class IndicatorWorker:
         }
         if 'ticker' in task_data and 'indicator' in task_data and 'strategy' in task_data:
 
-            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d')
+            ts = TimeSeriesData(ticker=task_data['ticker'], interval='1d', db_connection=self.db_connection)
             ts.update_data()
             logging.info(f"Last data point: {ts.data.index[-1]}")
             indicator = globals()[task_data['indicator']]()
@@ -126,12 +134,14 @@ class IndicatorWorker:
     def stop(self):
         self.channel.stop_consuming()
         self.connection.close()
+        self.db_connection.close()
 
 if __name__ == "__main__":
     instance_id = "instance_1"  # Example; you could auto-generate this or use environment variables
     coordinator_url = f"http://{RABBITMQ_HOST}:5000"  # Coordinator URL for reporting status
+    init_database(POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)
+    
     worker = IndicatorWorker(instance_id, coordinator_url)
-
     try:
         worker.start_consuming()
     except KeyboardInterrupt:
