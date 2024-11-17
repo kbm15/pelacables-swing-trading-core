@@ -121,13 +121,13 @@ export async function formatTickerMessage(ticker: string): Promise<string> {
         if (trailingAnnualDividendRate && epsTrailingTwelveMonths) {
             const dividendRatio = (trailingAnnualDividendRate / epsTrailingTwelveMonths) * 100;
             if (dividendRatio >= 0 && dividendRatio <= 35) {
-                dividendColor = "🔵"; // Blue
+                dividendColor = "🔵"; // Blue 🔵
             } else if (dividendRatio > 35 && dividendRatio <= 55) {
-                dividendColor = "🟢"; // Green
+                dividendColor = "🟢"; // Green 🟢
             } else if (dividendRatio <= 95) {
-                dividendColor = "🟠"; // Orange
+                dividendColor = "🟠"; // Orange 🟠
             } else {
-                dividendColor = "🔴"; // Red
+                dividendColor = "🔴"; // Red 🔴
             }
         }
 
@@ -137,34 +137,29 @@ export async function formatTickerMessage(ticker: string): Promise<string> {
             : "N/A";
         const exDividendDate = dividendDate ? new Date(dividendDate).toLocaleDateString() : "N/A";
         const earningsDate = earningsTimestampStart && earningsTimestampEnd
-            ? `${new Date(earningsTimestampStart).toLocaleDateString()} - ${new Date(earningsTimestampEnd).toLocaleDateString()}`
+            ? `${new Date(earningsTimestampEnd).toLocaleDateString()}`
             : "N/A";
         const targetPrice = targetHighPrice && targetLowPrice && targetMeanPrice
             ? `\$${targetMeanPrice?.toFixed(2)} (\$${targetLowPrice.toFixed(2)} - \$${targetHighPrice.toFixed(2)})`
             : "N/A";
     
-        const formattedMessage = `
-            📊 *${longName}* (\`${symbol}\`)
-    
-            *🔑 Métricas Clave*
-            - *Rango del Día:* $${regularMarketDayRange?.low.toFixed(2)} - $${regularMarketDayRange?.high.toFixed(2)}
-            - *Rango de 52 Semanas:* $${fiftyTwoWeekRange?.low.toFixed(2)} - $${fiftyTwoWeekRange?.high.toFixed(2)}
-    
-            *📈 Valoración*
-            - *Capitalización de Mercado (Intradía):* ${formattedMarketCap} (${marketCapCategory} Cap)
-            - *Beta (5 años mensual):* ${(beta ?? 0).toFixed(2)}
-            - *Relación Precio/Ganancias (TTM):* ${(trailingPE ?? 0).toFixed(2)}
-            - *Beneficio por Acción (TTM):* $${(epsTrailingTwelveMonths ?? 0).toFixed(2)}
-    
-            *💵 Ganancias y Dividendos*
-            - *Fecha de Resultados:* ${earningsDate}
-            - *Dividendos & Rentabilidad:* ${dividendInfo} 
-            - *Semaforo de Dividendos:* ${dividendColor}
-            - *Fecha Ex-Dividendo:* ${exDividendDate}
-    
-            *🎯 Estimación de Precio Objetivo*
-            - *Objetivo a 1 Año:* ${targetPrice}
-            `;
+        const formattedMessage = 
+            `📊 *${longName}* (\`${symbol}\`)\n\n` +
+            `*🔑 Métricas Clave*\n` +
+            `- *Rango diario:* $${regularMarketDayRange?.low.toFixed(2)} - $${regularMarketDayRange?.high.toFixed(2)}\n` +
+            `- *Rango 52 sem:* $${fiftyTwoWeekRange?.low.toFixed(2)} - $${fiftyTwoWeekRange?.high.toFixed(2)}\n\n` +
+            `*📈 Valoración*\n` +
+            `- *Capitalización:* ${formattedMarketCap} (${marketCapCategory} Cap)\n` +
+            `- *Beta (5a):* ${(beta ?? 0).toFixed(2)}\n` +
+            `- *Ratio Precio/Beneficios:* ${(trailingPE ?? 0).toFixed(2)}\n` +
+            `- *Beneficio por Acción:* $${(epsTrailingTwelveMonths ?? 0).toFixed(2)}\n\n` +
+            `*💵 Ganancias y Dividendos*\n` +
+            `- *Fecha de Resultados:* ${earningsDate}\n` +
+            `- *Dividendos (Rentab):* ${dividendInfo}\n` +
+            `- *Valoración Dividendo:* ${dividendColor}\n` +
+            `- *Fecha Ex-Div:* ${exDividendDate}\n\n` +
+            `*🎯 Estimación de Precio Objetivo*\n` +
+            `- *1 Año:* ${targetPrice}`;
     
         return formattedMessage;
     }
