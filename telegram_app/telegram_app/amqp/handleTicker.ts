@@ -53,7 +53,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
             if (indicatorUrls[indicator]) {
-                responseMessage += `📌 **Indicador:** *[${indicator}](${indicatorUrls[indicator]})*\n`;
+                responseMessage += `📌 **Indicador:** *${indicator}* [+INFO](${indicatorUrls[indicator]})\n`;
             } else {
                 responseMessage += `📌 **Indicador:** *${indicator}*\n`;
             }
@@ -76,7 +76,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             // Enviar mensaje al chat apropiado (usuario o grupo)
             if (chatId !== undefined && chatId !== null) {
-                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
+                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup, link_preview_options: { is_disabled: true } });
                 console.log(`Respuesta enviada a chatId: ${chatId}`);
             } 
 

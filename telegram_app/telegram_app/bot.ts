@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { message } from 'telegraf/filters'
 import type { Channel } from 'amqplib';
-import { findTicker,checkTicker } from './utils/checkTicker';
+import { findTicker, checkTicker, formatTickerMessage } from './utils/checkTicker';
 
 import { connectRabbitMQ } from './amqp/setupChannel';
 import { sendSuscriptionRequest, consumeNotifications } from './amqp/handleNotification';
@@ -97,8 +97,10 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
             return ctx.reply("❌ Error en la solicitud. Por favor intenta de nuevo.");        
         } else {
             console.log(`Usuario ${userId} solicitó ticker: ${ticker.toUpperCase()}, chatId: ${chatId}`);
+
             await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), channel, chatId);
-            return ctx.reply(`✅ Solicitud enviada para ${ticker.toUpperCase()}. Recibirás la información en breve.`);        
+            const tickerRequestMessage = await formatTickerMessage(ticker);
+            return ctx.reply(tickerRequestMessage,{ parse_mode: 'Markdown'});        
         }    
     });
 
