@@ -98,8 +98,9 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         } else {
             console.log(`Usuario ${userId} solicitó ticker: ${ticker.toUpperCase()}, chatId: ${chatId}`);
 
-            await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), channel, chatId);
+            
             const tickerRequestMessage = await formatTickerMessage(ticker);
+            await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), channel, chatId);
             return ctx.reply(tickerRequestMessage,{ parse_mode: 'Markdown'});        
         }    
     });
