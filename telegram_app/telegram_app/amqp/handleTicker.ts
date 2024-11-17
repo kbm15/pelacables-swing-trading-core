@@ -24,6 +24,17 @@ export async function sendTickerRequest(userId: number, ticker: string, channel:
 
 // Consumer for ticker responses
 export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
+    const indicatorUrls: { [key: string]: string } = {
+        "AwesomeOscillator": "https://www.tradingview.com/support/solutions/43000501826-awesome-oscillator-ao/",
+        "BollingerBands": "https://www.tradingview.com/support/solutions/43000501840-bollinger-bands-bb/",
+        "IchimokuCloud": "https://www.tradingview.com/support/solutions/43000589152-ichimoku-cloud/",
+        "KeltnerChannel": "https://www.tradingview.com/support/solutions/43000502266-keltner-channels-kc/",
+        "MovingAverage": "https://www.tradingview.com/support/solutions/43000502589-moving-averages/",
+        "MACD": "https://www.tradingview.com/support/solutions/43000502344-macd-moving-average-convergence-divergence/",
+        "PSAR": "https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/",
+        "RSI": "https://www.tradingview.com/support/solutions/43000502338-relative-strength-index-rsi/",
+        "VolumeIndicator": "https://www.tradingview.com/support/solutions/43000591617-volume/"
+    };
     channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
         if (msg) {
             console.log(`Respuesta de ticker recibida: ${msg.content.toString()}`);
@@ -41,12 +52,16 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
-            responseMessage += `📌 **Indicador:** *${indicator}*\n`;
-            responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
+            if (indicatorUrls[indicator]) {
+                responseMessage += `📌 **Indicador:** *[${indicator}](${indicatorUrls[indicator]})*\n`;
+            } else {
+                responseMessage += `📌 **Indicador:** *${indicator}*\n`;
+            }
+
+            //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
             
             responseMessage += `🔔 **Señal:** ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
             responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
-            responseMessage += `🔄 _Respuesta solicitada por el usuario ${chatId}_`;
 
             // Definir los botones de interacción
             const markup = {

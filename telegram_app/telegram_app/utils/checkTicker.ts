@@ -37,15 +37,24 @@ export async function findTicker(ticker: string): Promise<Record<string, {longna
 }
 
 export async function checkTicker(ticker: string): Promise<boolean> {
+    const exchangeWhitelist = ['CCC','NMS','NYQ','PCX','NGM','MCE','PAR','MIL','GER','BRU','AMS','LSE','HKG','SHH','JPX','ASX']
     let result;
     try {
         yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
         result = await yahooFinance.quote(ticker);
-        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined){
-            if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)) {
-                console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
-                console.log(`Current price is ${result.regularMarketPrice}`);
-                return true;            
+        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined && result.exchange !== undefined && result.regularMarketPrice !== undefined) {
+            if (exchangeWhitelist.includes(result.exchange)) {
+                if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 1 * 365 * 24 * 60 * 60 * 1000)) {
+                    console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
+                    console.log(`Current price is ${result.regularMarketPrice} on ${result.exchange}`);
+                    return true;            
+                } else {
+                    console.log(`Ticker ${ticker} is too new`);
+                    return false;
+                }
+            } else {
+                console.log(`Ticker ${ticker} is on ${result.exchange}`);
+                return false;
             }
         }
     } catch (error) {

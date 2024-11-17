@@ -64,7 +64,7 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         bot.on(message('text'), async (ctx) => {
             console.log(`Usuario ingresó ticker: ${ctx.message.text}`);
             const ticker = ctx.message.text.toUpperCase();
-            const tickerRegex = /^[A-Za-z]+$/;
+            const tickerRegex = /^[A-Za-z.]+$/;
 
             if (!tickerRegex.test(ticker)) {
                 console.log(`Ticker inválido ingresado: ${ticker}`);
@@ -90,7 +90,7 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         const tickerValid = await checkTicker(ticker);
 
         if (!tickerValid) {
-            return ctx.reply(`❌ Ticker ${ticker} no valido. Por favor intenta de nuevo.`, Markup.forceReply());    
+            return ctx.reply(`❌ Valor ${ticker} no soportado, prueba con otro.`, Markup.forceReply());    
         }
         
         if (userId === undefined || ticker === undefined) {
