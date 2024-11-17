@@ -89,7 +89,7 @@ services:
       - postgres
       - rabbitmq
     ports:
-      - "8080:8080"  # Puerto para acceder a la webapp
+      - "5000:5000"  # Puerto para acceder a la webapp
     restart: on-failure
   
 volumes:
