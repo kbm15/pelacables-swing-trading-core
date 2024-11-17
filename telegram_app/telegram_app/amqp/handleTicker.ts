@@ -53,7 +53,10 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 inline_keyboard: [
                     [
                         { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
-                        { text: '📊 Grafico', url: `https://finance.yahoo.com/quote/${ticker}` },
+                        { 
+                            text: '📊 Gráfico', 
+                            web_app: { url: `http://localhost:5000/grafico/${ticker}` } // Aquí la URL de tu aplicación web
+                        },
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                     ]
                 ]

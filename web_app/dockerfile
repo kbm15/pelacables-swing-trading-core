@@ -1,0 +1,41 @@
+FROM python:3.12-slim AS builder
+
+# Instalamos Poetry para gestionar las dependencias del proyecto
+RUN pip install poetry==1.8.3
+
+# Establecemos variables de entorno para la configuración de Poetry
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+# Establecemos el directorio de trabajo
+WORKDIR /app
+
+# Copiamos los archivos de dependencias de Poetry (pyproject.toml y poetry.lock)
+COPY pyproject.toml poetry.lock ./ 
+
+# Instalamos las dependencias del proyecto
+RUN poetry install --no-dev --no-root && rm -rf $POETRY_CACHE_DIR
+
+# Imagen base para la ejecución de la aplicación
+FROM python:3.12-slim AS runtime
+
+# Establecemos las variables de entorno para el entorno virtual
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
+# Copiamos las dependencias desde el contenedor 'builder' para el entorno virtual
+COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+
+# Copiamos el código de la aplicación a la imagen
+COPY . /app
+
+# Instalamos las dependencias del sistema necesarias, si hay alguna (opcional)
+RUN apt-get update && apt-get install -y libpq-dev
+
+# Exponemos el puerto que usará la aplicación Flask
+EXPOSE 5000
+
+# Comando para ejecutar la aplicación Flask
+ENTRYPOINT ["flask", "run", "--host=0.0.0.0", "--port=5000"]

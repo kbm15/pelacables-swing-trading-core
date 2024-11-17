@@ -1,0 +1,108 @@
+/* Estilos generales */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f4f5f7; /* Fondo suave */
+    color: #212529; /* Texto principal */
+    text-align: center; /* Asegura que el contenido esté centrado */
+    flex-direction: column;
+}
+
+/* Contenedor principal */
+.container {
+    width: 90%;
+    max-width: 800px;
+    padding: 20px;
+    background: #ffffff; /* Fondo blanco */
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Sombra sutil */
+    box-sizing: border-box;
+}
+
+/* Estilo del título */
+.title {
+    font-family: "Georgia", serif; /* Fuente formal */
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #003366; /* Azul corporativo */
+    margin: 0 auto;
+    text-align: center; /* Centrado del texto */
+    padding-bottom: 10px;
+    max-width: 80%; /* Limita el ancho del título en pantallas grandes */
+}
+
+/* Estilos del gráfico */
+.chart-container {
+    margin: 20px 0; /* Espacio arriba y abajo del gráfico */
+    width: 100%;
+    text-align: center;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: 50vh; /* Altura adaptable */
+    max-height: 400px;
+    box-sizing: border-box;
+    border-radius: 10px; /* Bordes redondeados */
+}
+
+/* Botones de acción */
+.btn-period {
+    padding: 10px 20px;
+    background-color: #0056b3; /* Azul oscuro */
+    color: #ffffff;
+    border: none;
+    border-radius: 5px; /* Bordes redondeados */
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-period:hover {
+    background-color: #00408a; /* Azul más oscuro */
+    transform: translateY(-2px); /* Efecto de elevación */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-period:active {
+    transform: translateY(0); /* Elimina elevación al presionar */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Pie de página */
+footer {
+    background-color: #212529; /* Fondo oscuro */
+    color: #dcdfe1; /* Texto en color claro */
+    font-size: 0.9rem;
+    padding: 10px 0;
+    width: 100%;
+    text-align: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .title {
+        font-size: 2rem; /* Ajusta el tamaño del título en móviles */
+    }
+
+    .btn-period {
+        width: 75%; /* Botones de ancho completo */
+        margin-bottom: 10px;
+    }
+
+    .chart-container {
+        margin: 15px 0;
+    }
+}
