@@ -55,7 +55,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                         { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
                         { 
                             text: '📊 Gráfico', 
-                            web_app: { url: `http://localhost:5000/grafico/${ticker}` } // Aquí la URL de tu aplicación web
+                            web_app: { url: `https://jarmi95.github.io/web_app_test/?ticker=${ticker}` } // Aquí la URL de tu aplicación web
                         },
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                     ]
