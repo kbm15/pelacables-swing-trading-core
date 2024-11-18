@@ -7,6 +7,16 @@ const NOTIFICATION_QUEUE = loadEnvVariable('NOTIFICATION_QUEUE');
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+interface Response {
+    ticker: string;
+    indicator: string;
+    strategy: string;
+    flag: 'simple' | 'backtest' | 'notification';
+    signals: { [timestamp: number]: number };
+    total_return: number;
+    chatId: number;
+}
+
 export function sendSuscriptionRequest(channel: Channel, message: Buffer) {
     channel.sendToQueue(SUSCRIPTION_QUEUE, message, { persistent: true });
 }
@@ -15,15 +25,17 @@ export function sendSuscriptionRequest(channel: Channel, message: Buffer) {
 export async function consumeNotifications(channel: Channel, bot: Telegraf) {
     channel.consume(NOTIFICATION_QUEUE, (msg) => {
         if (msg) {
-            const notification = JSON.parse(msg.content.toString());
-            console.log(`Notification received: ${JSON.stringify(notification)}`);
-            const { chatId, ticker, signal } = notification;
+            console.log(`Notification received: ${msg.content.toString()}`);
+            const notificationJson = JSON.parse(msg.content.toString());            
+            const notification: Response = notificationJson;
 
-            if (signal != null && signal != undefined) {
+            const { ticker, signals, chatId } = notification;
+
+            if (signals != null && chatId != null) {
 
                 // Send buy/sell signal to the subscribed user
                 const now = Date.now();
-                const recentSignals = Object.entries(signal).filter(([timestamp, value]) => {
+                const recentSignals = Object.entries(signals).filter(([timestamp, value]) => {
                     const signalDate = new Date(Number(timestamp));
                     return now - signalDate.getTime() <= DAY_IN_MS && (value === 1 || value === -1);
                 });

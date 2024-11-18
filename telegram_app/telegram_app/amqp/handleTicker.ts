@@ -12,7 +12,7 @@ interface Response {
     flag: 'simple' | 'backtest' | 'notification';
     signals: { [timestamp: number]: number };
     total_return: number;
-    chatId: number | null;
+    chatId: number;
 }
 
 // Send a ticker request to the queue
