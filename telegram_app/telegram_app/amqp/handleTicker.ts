@@ -79,6 +79,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                         { text: '📊 Grafico', "web_app": { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
                         //{ text: '📊 Grafico', "web_app": { 
                         //    url: `${WEBAPP_URL}?ticker=${ticker}&data=${Object.entries(signals).map(([timestamp, signal]) => `${timestamp}:${signal}`).join(',')}` }},
+
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                     ]
                 ]
