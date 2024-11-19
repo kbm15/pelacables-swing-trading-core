@@ -4,6 +4,7 @@ import { loadEnvVariable } from '../utils/loadEnv';
 
 const TICKER_REQUEST_QUEUE = loadEnvVariable('TICKER_REQUEST_QUEUE');
 const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
+const WEBAPP_URL = loadEnvVariable('WEBAPP_URL');
 
 interface Response {
     ticker: string;
@@ -12,7 +13,7 @@ interface Response {
     flag: 'simple' | 'backtest' | 'notification';
     signals: { [timestamp: number]: number };
     total_return: number;
-    chatId: number | null;
+    chatId: number;
 }
 
 // Send a ticker request to the queue
@@ -24,6 +25,17 @@ export async function sendTickerRequest(userId: number, ticker: string, channel:
 
 // Consumer for ticker responses
 export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
+    const indicatorUrls: { [key: string]: string } = {
+        "AwesomeOscillator": "https://www.tradingview.com/support/solutions/43000501826-awesome-oscillator-ao/",
+        "BollingerBands": "https://www.tradingview.com/support/solutions/43000501840-bollinger-bands-bb/",
+        "IchimokuCloud": "https://www.tradingview.com/support/solutions/43000589152-ichimoku-cloud/",
+        "KeltnerChannel": "https://www.tradingview.com/support/solutions/43000502266-keltner-channels-kc/",
+        "MovingAverage": "https://www.tradingview.com/support/solutions/43000502589-moving-averages/",
+        "MACD": "https://www.tradingview.com/support/solutions/43000502344-macd-moving-average-convergence-divergence/",
+        "PSAR": "https://www.tradingview.com/support/solutions/43000502597-parabolic-sar-sar/",
+        "RSI": "https://www.tradingview.com/support/solutions/43000502338-relative-strength-index-rsi/",
+        "VolumeIndicator": "https://www.tradingview.com/support/solutions/43000591617-volume/"
+    };
     channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
         if (msg) {
             console.log(`Respuesta de ticker recibida: ${msg.content.toString()}`);
@@ -41,22 +53,26 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
-            responseMessage += `📌 **Indicador:** *${indicator}*\n`;
-            responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
+            if (indicatorUrls[indicator]) {
+                responseMessage += `📌 **Indicador:** *${indicator}* [+INFO](${indicatorUrls[indicator]})\n`;
+            } else {
+                responseMessage += `📌 **Indicador:** *${indicator}*\n`;
+            }
+
+            //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
             
             responseMessage += `🔔 **Señal:** ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
             responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
-            responseMessage += `🔄 _Respuesta solicitada por el usuario ${chatId}_`;
 
             // Definir los botones de interacción
             const markup = {
                 inline_keyboard: [
                     [
                         { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
-                        { 
-                            text: '📊 Gráfico', 
-                            web_app: { url: `https://jarmi95.github.io/web_app_test/?ticker=${ticker}` } // Aquí la URL de tu aplicación web
-                        },
+                        { text: '📊 Grafico', url: `https://finance.yahoo.com/quote/${ticker}` },
+                        //{ text: '📊 Grafico', "web_app": { 
+                        //    url: `${WEBAPP_URL}?ticker=${ticker}&data=${Object.entries(signals).map(([timestamp, signal]) => `${timestamp}:${signal}`).join(',')}` }},
+
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                     ]
                 ]
@@ -64,7 +80,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             // Enviar mensaje al chat apropiado (usuario o grupo)
             if (chatId !== undefined && chatId !== null) {
-                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup });
+                bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup, link_preview_options: { is_disabled: true } });
                 console.log(`Respuesta enviada a chatId: ${chatId}`);
             } 
 

@@ -14,7 +14,7 @@ export interface Response {
     flag: 'simple' | 'backtest' | 'notification';
     signals: { [timestamp: number]: number };
     total_return: number;
-    chatId: number | null;
+    chatId: number;
 }
 
 export interface Operation {

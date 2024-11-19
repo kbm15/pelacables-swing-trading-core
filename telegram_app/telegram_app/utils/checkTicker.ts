@@ -37,15 +37,24 @@ export async function findTicker(ticker: string): Promise<Record<string, {longna
 }
 
 export async function checkTicker(ticker: string): Promise<boolean> {
+    const exchangeWhitelist = ['CCC','NMS','NYQ','PCX','NGM','MCE','PAR','MIL','GER','BRU','AMS','LSE','HKG','SHH','JPX','ASX']
     let result;
     try {
         yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
         result = await yahooFinance.quote(ticker);
-        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined){
-            if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)) {
-                console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
-                console.log(`Current price is ${result.regularMarketPrice}`);
-                return true;            
+        if (result !== undefined && result.firstTradeDateMilliseconds !== undefined && result.exchange !== undefined && result.regularMarketPrice !== undefined) {
+            if (exchangeWhitelist.includes(result.exchange)) {
+                if (result.firstTradeDateMilliseconds <= new Date(Date.now() - 1 * 365 * 24 * 60 * 60 * 1000)) {
+                    console.log(`Ticker ${ticker} first trade was in ${result.firstTradeDateMilliseconds.toUTCString()}`);
+                    console.log(`Current price is ${result.regularMarketPrice} on ${result.exchange}`);
+                    return true;            
+                } else {
+                    console.log(`Ticker ${ticker} is too new`);
+                    return false;
+                }
+            } else {
+                console.log(`Ticker ${ticker} is on ${result.exchange}`);
+                return false;
             }
         }
     } catch (error) {
@@ -63,3 +72,110 @@ export async function checkTicker(ticker: string): Promise<boolean> {
       
     return false;    
 }
+
+export async function formatTickerMessage(ticker: string): Promise<string> {
+    try {
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        const data = await yahooFinance.quote(ticker);
+        const summary = await yahooFinance.quoteSummary(ticker, { modules: [ "financialData" ] });
+        const {
+            longName,
+            symbol,
+            regularMarketDayRange,
+            fiftyTwoWeekRange,
+            marketCap,
+            trailingPE,
+            epsTrailingTwelveMonths,
+            earningsTimestampStart,
+            earningsTimestampEnd,
+            trailingAnnualDividendRate,
+            trailingAnnualDividendYield,
+            dividendDate,
+            beta
+        } = data;
+
+        const {
+            targetHighPrice,
+            targetLowPrice,
+            targetMeanPrice,
+            recommendationKey
+        } = summary.financialData ?? {};
+    
+        // Helper: Format Market Cap with Suffix
+        const formatMarketCap = (value: number): { formatted: string; category: string } => {
+            if (value >= 1e12) return { formatted: `${(value / 1e12).toFixed(2)}T`, category: "Mega" };
+            if (value >= 1e9) {
+                if (value >= 2e11) return { formatted: `${(value / 1e9).toFixed(2)}B`, category: "Mega" };
+                if (value >= 1e10) return { formatted: `${(value / 1e9).toFixed(2)}B`, category: "Large" };
+            }
+            if (value >= 1e9) return { formatted: `${(value / 1e9).toFixed(2)}B`, category: "Mid" };
+            if (value >= 3e8) return { formatted: `${(value / 1e6).toFixed(2)}M`, category: "Small" };
+            if (value >= 5e7) return { formatted: `${(value / 1e6).toFixed(2)}M`, category: "Micro" };
+            return { formatted: `${(value / 1e6).toFixed(2)}M`, category: "Nano" };
+        };
+    
+        const { formatted: formattedMarketCap, category: marketCapCategory } = formatMarketCap(marketCap ?? 0);
+    
+        // Determine Dividend Sustainability Color
+        let dividendColor = "⚫"; // Default to black (⚫)
+        if (trailingAnnualDividendRate && epsTrailingTwelveMonths) {
+            const dividendRatio = (trailingAnnualDividendRate / epsTrailingTwelveMonths) * 100;
+            if (dividendRatio >= 0 && dividendRatio <= 35) {
+                dividendColor = "🔵"; // Blue 🔵
+            } else if (dividendRatio > 35 && dividendRatio <= 55) {
+                dividendColor = "🟢"; // Green 🟢
+            } else if (dividendRatio <= 95) {
+                dividendColor = "🟠"; // Orange 🟠
+            } else {
+                dividendColor = "🔴"; // Red 🔴
+            }
+        }
+
+    
+        const dividendInfo = trailingAnnualDividendRate
+            ? `\$${trailingAnnualDividendRate.toFixed(2)} (${(trailingAnnualDividendYield ?? 0 * 100).toFixed(2)}%)`
+            : "N/A";
+        const exDividendDate = dividendDate ? new Date(dividendDate).toLocaleDateString() : "N/A";
+        const earningsDate = earningsTimestampStart && earningsTimestampEnd
+            ? `${new Date(earningsTimestampEnd).toLocaleDateString()}`
+            : "N/A";
+        const targetPrice = targetHighPrice && targetLowPrice && targetMeanPrice
+            ? `\$${targetMeanPrice?.toFixed(2)} (\$${targetLowPrice.toFixed(2)} - \$${targetHighPrice.toFixed(2)})`
+            : "N/A";
+    
+        const formattedMessage = 
+            `📊 *${longName}* (\`${symbol}\`)\n\n` +
+            `*🔑 Métricas Clave*\n` +
+            `- *Rango diario:* $${regularMarketDayRange?.low.toFixed(2)} - $${regularMarketDayRange?.high.toFixed(2)}\n` +
+            `- *Rango 52 sem:* $${fiftyTwoWeekRange?.low.toFixed(2)} - $${fiftyTwoWeekRange?.high.toFixed(2)}\n\n` +
+            `*📈 Valoración*\n` +
+            `- *Capitalización:* ${formattedMarketCap} (${marketCapCategory} Cap)\n` +
+            `- *Beta (5a):* ${(beta ?? 0).toFixed(2)}\n` +
+            `- *Ratio Precio/Beneficios:* ${(trailingPE ?? 0).toFixed(2)}\n` +
+            `- *Beneficio por Acción:* $${(epsTrailingTwelveMonths ?? 0).toFixed(2)}\n\n` +
+            `*💵 Ganancias y Dividendos*\n` +
+            `- *Fecha de Resultados:* ${earningsDate}\n` +
+            `- *Dividendos (Rentab):* ${dividendInfo}\n` +
+            `- *Valoración Dividendo:* ${dividendColor}\n` +
+            `- *Fecha Ex-Div:* ${exDividendDate}\n\n` +
+            `*🎯 Estimación de Precio Objetivo*\n` +
+            `- *1 Año:* ${targetPrice}`;
+    
+        return formattedMessage;
+    }
+    catch (error) {
+        if (error instanceof yahooFinance.errors.FailedYahooValidationError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [FailedYahooValidationError]`);
+            return ''; 
+        } else if (error instanceof yahooFinance.errors.HTTPError) {
+            console.warn(`Skipping yf.quote("${ticker}"): [HTTPError]`);
+            return ''; 
+        } else {
+            console.warn(`Skipping yf.quote("${ticker}"): [UnknownError]`);
+            return ''; 
+        }
+      }
+    return '';
+}
+    
+    
