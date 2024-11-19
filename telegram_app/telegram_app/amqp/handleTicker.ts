@@ -4,6 +4,7 @@ import { loadEnvVariable } from '../utils/loadEnv';
 
 const TICKER_REQUEST_QUEUE = loadEnvVariable('TICKER_REQUEST_QUEUE');
 const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
+const WEBAPP_URL = loadEnvVariable('WEBAPP_URL');
 
 interface Response {
     ticker: string;
@@ -69,6 +70,8 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                     [
                         { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
                         { text: '📊 Grafico', url: `https://finance.yahoo.com/quote/${ticker}` },
+                        //{ text: '📊 Grafico', "web_app": { 
+                        //    url: `${WEBAPP_URL}?ticker=${ticker}&data=${Object.entries(signals).map(([timestamp, signal]) => `${timestamp}:${signal}`).join(',')}` }},
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                     ]
                 ]
