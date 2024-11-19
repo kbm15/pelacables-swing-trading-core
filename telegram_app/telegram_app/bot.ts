@@ -101,7 +101,10 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
             
             const tickerRequestMessage = await formatTickerMessage(ticker);
             await sendTickerRequest(ctx.from.id, ticker.toUpperCase(), channel, chatId);
-            return ctx.reply(tickerRequestMessage,{ parse_mode: 'Markdown'});        
+            if (tickerRequestMessage.length > 0) {
+                return ctx.reply(tickerRequestMessage,{ parse_mode: 'Markdown'});
+            }
+            return;                    
         }    
     });
 

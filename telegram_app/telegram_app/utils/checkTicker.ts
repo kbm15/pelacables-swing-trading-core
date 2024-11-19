@@ -10,6 +10,7 @@ type Interval = '1mo' | '1m' | '2m' | '5m' | '15m' | '30m' | '60m' | '90m' | '1h
  */
 
 export async function findTicker(ticker: string): Promise<Record<string, {longname: string, symbol: string}[]>> {
+    console.log(`Searching for ticker ${ticker}`);
     const foundTickers: Record<string, {longname: string, symbol: string}[]> = {'quotes': []};
     let result;
     try {     
@@ -37,6 +38,7 @@ export async function findTicker(ticker: string): Promise<Record<string, {longna
 }
 
 export async function checkTicker(ticker: string): Promise<boolean> {
+    console.log(`Checking ticker ${ticker}`);
     const exchangeWhitelist = ['CCC','NMS','NYQ','PCX','NGM','MCE','PAR','MIL','GER','BRU','AMS','LSE','HKG','SHH','JPX','ASX']
     let result;
     try {
@@ -73,7 +75,41 @@ export async function checkTicker(ticker: string): Promise<boolean> {
     return false;    
 }
 
+export async function getTickerExchange(ticker: string): Promise<string> {
+    console.log(`Getting exchange for ${ticker}`);
+    const exchangeNames: { [key: string]: string } = {
+        "CCC": "CRYPTO",
+        "NMS": "NASDAQ",
+        "NYQ": "NYSE",
+        "PCX": "AMEX",
+        "NGM": "NASDAQ",
+        "MCE": "BME",
+        "PAR": "EURONEXT",
+        "MIL": "MIL",
+        "GER": "XETR",
+        "BRU": "EURONEXT",
+        "AMS": "EURONEXT",
+        "LSE": "LSE",
+        "HKG": "HKEX",
+        "SHH": "SSE",
+        "JPX": "TSE",
+        "ASX": "ASX"
+    }
+    let result;
+    try {
+        yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
+        result = await yahooFinance.quote(ticker);
+        if (result !== undefined && result.exchange !== undefined) {
+            return exchangeNames[result.exchange];
+        }
+    } catch (error) {
+        console.warn(`Skipping yf.quote("${ticker}"): [UnknownError]`);
+    }
+    return '';
+}
+
 export async function formatTickerMessage(ticker: string): Promise<string> {
+    console.log(`Formatting ticker ${ticker}`);
     try {
         yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
         const data = await yahooFinance.quote(ticker);

@@ -1,6 +1,7 @@
 import type { Channel } from 'amqplib';
 import type { Telegraf } from 'telegraf';
 import { loadEnvVariable } from '../utils/loadEnv';
+import { getTickerExchange } from '../utils/checkTicker';
 
 const TICKER_REQUEST_QUEUE = loadEnvVariable('TICKER_REQUEST_QUEUE');
 const TICKER_RESPONSE_QUEUE = loadEnvVariable('TICKER_RESPONSE_QUEUE');
@@ -36,7 +37,8 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
         "RSI": "https://www.tradingview.com/support/solutions/43000502338-relative-strength-index-rsi/",
         "VolumeIndicator": "https://www.tradingview.com/support/solutions/43000591617-volume/"
     };
-    channel.consume(TICKER_RESPONSE_QUEUE, (msg) => {
+    
+    channel.consume(TICKER_RESPONSE_QUEUE, async(msg) => {
         if (msg) {
             console.log(`Respuesta de ticker recibida: ${msg.content.toString()}`);
             const responseJson = JSON.parse(msg.content.toString());
@@ -48,6 +50,11 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             const signal = Object.entries(signals)[0][1];
             const signalString = signal === 1 ? 'Comprar' : signal === -1 ? 'Vender' : 'Mantener';
             const date = new Date(Number(Object.entries(signals)[0][0]));
+            const marketTicker = await getTickerExchange(ticker);
+
+            const cleanTicker = ticker.split('.')[0].replace('-', '');
+
+            console.log(`URL: ${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}`)
 
             console.log(`Señal ${signal} el ${date}`)
 
@@ -69,7 +76,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 inline_keyboard: [
                     [
                         { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
-                        { text: '📊 Grafico', url: `https://finance.yahoo.com/quote/${ticker}` },
+                        { text: '📊 Grafico', "web_app": { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
                         //{ text: '📊 Grafico', "web_app": { 
                         //    url: `${WEBAPP_URL}?ticker=${ticker}&data=${Object.entries(signals).map(([timestamp, signal]) => `${timestamp}:${signal}`).join(',')}` }},
                         { text: '🔙 Menú', callback_data: 'MAIN_MENU' }

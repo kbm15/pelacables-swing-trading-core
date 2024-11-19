@@ -36,7 +36,7 @@ services:
       TICKER_RESPONSE_QUEUE: ticker_responses
       NOTIFICATION_QUEUE: indicator_notifications
       SUSCRIPTION_QUEUE: indicator_suscriptions
-      WEBAPP_URL: https://d1xlycjiumzz81.cloudfront.net/index.html
+      WEBAPP_URL: https://d227kwvvokg0j3.cloudfront.net/
     depends_on:
       - rabbitmq
     restart: on-failure
