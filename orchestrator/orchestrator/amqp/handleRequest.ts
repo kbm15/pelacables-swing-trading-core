@@ -135,8 +135,22 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                     const operation = await getOperation(ticker, client);
                     // Check if the last operation's timestamp is within the specified range
                     //if (lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) {
-                    if ((lastOperationTimestamp > closeNYSE && lastOperationTimestamp < openNYSE) || lastOperationTimestamp < DateTime.now().minus({ hours: 1 })) {                    
-                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is not within times for NYSE open and close or more than 1 hour ago`);
+                    console.log(`Current time is ${DateTime.now().toISO()} and last operation for ${ticker} is ${lastOperationTimestamp.toISO()}`);
+                    if (( DateTime.now() < openNYSE  && closeNYSE < DateTime.now() ) || lastOperationTimestamp < DateTime.now().minus({ hours: 24 })) {             
+                        console.log(`Getting new data for ${ticker}`);
+                        const request: Request = { 
+                            ticker:ticker, 
+                            indicator: bestIndicator.indicator, 
+                            strategy: bestIndicator.strategy, 
+                            flag: source, 
+                            chatId: chatId !== null ? chatId : userId
+                        }; 
+                        if (!tickerExists(ticker)) {
+                            sendRequest(channel, request);
+                        }
+                        pushRequest(request);        
+                    } else {       
+                        console.log(`Sending data from last operation for ${ticker}`);
                         const response : Response = { 
                             ticker: ticker,
                             indicator: lastOperation.indicator,
@@ -150,20 +164,7 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                             sendNotification(channel,Buffer.from(JSON.stringify(response)));
                         } else {
                             channel.sendToQueue(TICKER_RESPONSE_QUEUE, Buffer.from(JSON.stringify(response)), { persistent: false });
-                        }                        
-                    } else {
-                        console.log(`Last operation for ${ticker} is ${lastOperationTimestamp.toISO()} which is within times for NYSE open and close`);
-                        const request: Request = { 
-                            ticker:ticker, 
-                            indicator: bestIndicator.indicator, 
-                            strategy: bestIndicator.strategy, 
-                            flag: source, 
-                            chatId: chatId !== null ? chatId : userId
-                        }; 
-                        if (!tickerExists(ticker)) {
-                            sendRequest(channel, request);
-                        }
-                        pushRequest(request);
+                        }                
                     }
                 } else {
                     console.log(`Last operation for ${ticker} not found`);
