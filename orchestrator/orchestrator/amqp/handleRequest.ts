@@ -9,8 +9,6 @@ import { sendNotification } from './handleSuscription';
 import type { Response, Request } from '../types';
 import { DateTime } from 'luxon';
 
-
-const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const pendingRequests: Request[] = [];
 
 
@@ -95,7 +93,8 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
 
             const bestIndicator = await getBestIndicator(ticker, client);            
 
-            if (!bestIndicator || (Date.now() - new Date(bestIndicator.updatedAt).getTime() > TWO_WEEKS_MS)) {
+            const twoWeeksAgo = DateTime.now().minus({ weeks: 2 }).toJSDate();
+            if (!bestIndicator || bestIndicator.updatedAt < twoWeeksAgo) {
                 // If no bestIndicator or the bestIndicator was updated more than two weeks ago
                 
                 if (addTickerToResponseAggregator(ticker)) {

@@ -71,22 +71,23 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             responseMessage += `🔔 **Señal:** ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
             responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
 
-            // Definir los botones de interacción
-            const markup = {
-                inline_keyboard: [
-                    [
-                        { text: '🔔 Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
-                        { text: '📊 Grafico', "web_app": { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
-                        //{ text: '📊 Grafico', "web_app": { 
-                        //    url: `${WEBAPP_URL}?ticker=${ticker}&data=${Object.entries(signals).map(([timestamp, signal]) => `${timestamp}:${signal}`).join(',')}` }},
-
-                        { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
-                    ]
-                ]
-            };
+            
 
             // Enviar mensaje al chat apropiado (usuario o grupo)
             if (chatId !== undefined && chatId !== null) {
+                const isGroup = chatId < 0
+                // Definir los botones de interacción
+                    const markup = {
+                        inline_keyboard: [
+                        [
+                                { text: '🔔   Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
+                                isGroup
+                                ? { text: '📊   Grafico', url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }
+                                : { text: '📊 x  Grafico', web_app: { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
+                                { text: '🔙   Menú', callback_data: 'MAIN_MENU' }
+                        ]
+                        ]
+                };
                 bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup, link_preview_options: { is_disabled: true } });
                 console.log(`Respuesta enviada a chatId: ${chatId}`);
             } 

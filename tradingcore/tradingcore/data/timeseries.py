@@ -94,7 +94,7 @@ class TimeSeriesData:
             if (new_data.index[-1] - last_date) >= timedelta(hours=1) :
                 logging.debug("Last data point is after cutoff date. Fetching incremental data.")                
                 self.data = pd.concat([self.data, new_data]).drop_duplicates(subset=['Open'], keep='first')
-                self.data.index = pd.to_datetime(self.data.index)
+                self.data.index = pd.to_datetime(self.data.index, utc=True)
             
         self.cache_data(self.data)
 
