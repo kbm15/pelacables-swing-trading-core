@@ -61,15 +61,15 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
             if (indicatorUrls[indicator]) {
-                responseMessage += `📌 **Indicador:** *${indicator}* [+INFO](${indicatorUrls[indicator]})\n`;
+                responseMessage += `📌 *Indicador:* ${indicator} [+INFO](${indicatorUrls[indicator]})\n`;
             } else {
-                responseMessage += `📌 **Indicador:** *${indicator}*\n`;
+                responseMessage += `📌 *Indicador:* ${indicator}\n`;
             }
 
             //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
+            responseMessage += `💹 *Retorno Indicador 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
+            responseMessage += `🔔 *Señal:* ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
             
-            responseMessage += `🔔 **Señal:** ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
-            responseMessage += `💹 **Retorno Total:** ${total_return !== undefined && total_return !== null ? `*${total_return.toFixed(2)}%*` : '*No disponible*'}\n\n`;
 
             
 
@@ -80,11 +80,11 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                     const markup = {
                         inline_keyboard: [
                         [
-                                { text: '🔔   Suscribirse', callback_data: `SUBSCRIBE_${ticker}` },
+                                { text: '🔔 Suscribir', callback_data: `SUBSCRIBE_${ticker}` },
                                 isGroup
-                                ? { text: '📊   Grafico', url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }
-                                : { text: '📊 x  Grafico', web_app: { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
-                                { text: '🔙   Menú', callback_data: 'MAIN_MENU' }
+                                ? { text: '📊 Grafico', url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }
+                                : { text: '📊 Grafico', web_app: { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
+                                { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
                         ]
                         ]
                 };
