@@ -94,7 +94,7 @@ class IndicatorWorker:
             else:
                 bs = indicator.calculate(ts.data)                
                 signal = 0
-                result_data['signals']={str(ts.data.index[-1].timestamp()*1000):bs.iloc[-i]}
+                result_data['signals']={str(ts.data.index[-1].timestamp()*1000):bs.iloc[-1]}
                 for i in range(1,len(bs)):
                     if bs.iloc[-i] != signal: 
                         if bs.iloc[-i] == 0:

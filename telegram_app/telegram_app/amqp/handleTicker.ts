@@ -48,7 +48,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             const { ticker, indicator, strategy, signals, total_return, chatId } = response;
 
             const signal = Object.entries(signals)[0][1];
-            const signalString = signal === 1 ? 'Comprar' : signal === -1 ? 'Vender' : 'Mantener';
+            const signalString = signal === 1 ? 'Compra' : signal === -1 ? 'Venta' : 'Mantener';
             const date = new Date(Number(Object.entries(signals)[0][0]));
             const marketTicker = await getTickerExchange(ticker);
 
@@ -67,8 +67,8 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             }
 
             //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
-            responseMessage += `💹 *Retorno Indicador 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
-            responseMessage += `🔔 *Señal:* ${signalString} el ${date.toLocaleDateString()} a las ${date.toLocaleTimeString()}\n`;
+            responseMessage += `💹 *Retorno en 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
+            responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}}\n`;
             
 
             
