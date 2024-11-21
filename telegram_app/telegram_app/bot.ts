@@ -23,15 +23,15 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         resize_keyboard: true
     };
     const helpMessage = 
-        `🤖 *Bienvenido al Bot de MonoTrading* 📈` +
-        `Este bot te permite recibir señales de compra/venta basadas en el análisis del mercado con un marco de tiempo _diario_.` +
-        `🛠️ *Funciones Principales:*` +
-        `1. *📊 Solicitar Estrategia de Ticker* ` +
-        `Analiza un _ticker_ y obtén una estrategia recomendada. También puedes suscribirte para recibir actualizaciones automáticas.` +
-        `2. *📋 Lista de Suscripciones*` +
-        `Administra tus suscripciones activas a señales de diferentes _tickers_ y anula la suscripción cuando lo desees.` +
-        `_Recuerda que estas señales no constituye una recomendación de inversión y es importante realizar tu propio análisis._` +
-        `🔍 Para un análisis detallado, abre el gráfico del _ticker_ para ver el indicador en tiempo real.`;
+        `🤖 *Bienvenido al Bot de MonoTrading* 📈\n` +
+        `Este bot te permite recibir señales de compra/venta basadas en el análisis del mercado con un marco de tiempo _diario_.\n\n` +
+        `🛠️ *Funciones Principales:*\n` +
+        `1. *📊 Solicitar Estrategia de Ticker*\n` +
+        `Analiza un _ticker_ y obtén una estrategia recomendada. También puedes suscribirte para recibir actualizaciones automáticas.\n` +
+        `2. *📋 Lista de Suscripciones*\n` +
+        `Administra tus suscripciones activas a señales de diferentes _tickers_ y anula la suscripción cuando lo desees.\n\n` +
+        `_Recuerda que estas señales no constituye una recomendación de inversión y es importante realizar tu propio análisis._\n` +
+        `🔍 Para un análisis detallado, abre el gráfico del _ticker_ para ver el indicador en tiempo real.\n`;
 
     bot.start((ctx) => {
         console.log(`El usuario inició el bot: ${ctx.from.id}`);
