@@ -44,19 +44,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
             const responseJson = JSON.parse(msg.content.toString());
             responseJson.signals = Object.fromEntries(Object.entries(responseJson.signals).map(([timestamp, signal]) => [Number(timestamp), Number(signal)]));
             const response: Response = responseJson;
-
-            const { ticker, indicator, strategy, signals, total_return, chatId } = response;
-
-            const signal = Object.entries(signals)[0][1];
-            const signalString = signal === 1 ? 'Compra' : signal === -1 ? 'Venta' : 'Mantener';
-            const date = new Date(Number(Object.entries(signals)[0][0]));
-            const marketTicker = await getTickerExchange(ticker);
-
-            const cleanTicker = ticker.split('.')[0].replace('-', '');
-
-            console.log(`URL: ${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}`)
-
-            console.log(`Señal ${signal} el ${date}`)
+            const { ticker, indicator, strategy, signals, total_return, chatId } = response
 
             // Construir un mensaje detallado y formateado
             let responseMessage = `📊 *Resumen de Estrategia para ${ticker}*\n\n`;
@@ -66,27 +54,33 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 responseMessage += `📌 *Indicador:* ${indicator}\n`;
             }
 
-            //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
-            responseMessage += `💹 *Retorno en 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
-            responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}\n`;
-            
+            responseMessage += `💹 *Últimos 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
 
-            
+            if (Object.keys(signals).length === 0) {
+                console.log(`No signals for ticker: ${ticker}, chatId: ${chatId}`);
+            } else {
+                const signal = Object.entries(signals)[0][1];
+                const signalString = signal === 1 ? 'Compra' : signal === -1 ? 'Venta' : 'Mantener';
+                const date = new Date(Number(Object.entries(signals)[0][0]));
+                responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}\n`;
+            }
 
             // Enviar mensaje al chat apropiado (usuario o grupo)
             if (chatId !== undefined && chatId !== null) {
                 const isGroup = chatId < 0
-                // Definir los botones de interacción
-                    const markup = {
-                        inline_keyboard: [
-                        [
-                                { text: '🔔 Suscribir', callback_data: `SUBSCRIBE_${ticker}` },
-                                isGroup
-                                ? { text: '📊 Grafico', url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }
-                                : { text: '📊 Grafico', web_app: { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
-                                { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
-                        ]
-                        ]
+                const marketTicker = await getTickerExchange(ticker);
+                const cleanTicker = ticker.split('.')[0].replace('-', '');
+                console.log(`URL: ${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}`)
+                const markup = {
+                    inline_keyboard: [
+                    [
+                            { text: '🔔 Suscribir', callback_data: `SUBSCRIBE_${ticker}` },
+                            isGroup
+                            ? { text: '📊 Grafico', url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }
+                            : { text: '📊 Grafico', web_app: { url: `${WEBAPP_URL}?ticker=${marketTicker}:${cleanTicker}&indicator=${indicator}` }},
+                            { text: '🔙 Menú', callback_data: 'MAIN_MENU' }
+                    ]
+                    ]
                 };
                 bot.telegram.sendMessage(chatId, responseMessage, { parse_mode: 'Markdown', reply_markup: markup, link_preview_options: { is_disabled: true } });
                 console.log(`Respuesta enviada a chatId: ${chatId}`);

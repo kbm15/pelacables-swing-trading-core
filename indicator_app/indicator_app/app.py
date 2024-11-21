@@ -5,6 +5,7 @@ import logging
 import requests  # For signaling the coordinator
 import os
 import orjson
+from datetime import timedelta
 
 
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
@@ -64,7 +65,12 @@ class IndicatorWorker:
                 logging.info(f"[{self.instance_id}] Backtest task: {body}")
                 
                 logging.debug(f'Starting backtest indicator {task_data['strategy']} on {task_data['ticker']}')
-                
+                days = 182
+                if task_data['indicator'] == 'Hold':
+                    last_date = ts.data.index[-1]
+                    period_delta = last_date - timedelta(days=days)
+                    ts.data = ts.data.loc[period_delta:].copy()
+
                 # Configure Backtester instance
                 backtester = Backtester(
                     tsdata=ts,
@@ -82,7 +88,12 @@ class IndicatorWorker:
                 if len(timestamps) != len(data):
                     logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(data)})")
                 else:
-                    signal = 0
+                    if len(data) == 0:
+                        result_data['total_return'] = -100.0
+                        timestamps = ts.data.index[-1].tolist()
+                        data = [0]                        
+                    signal = data[0]
+                    result_data['signals'][str(timestamps[0].timestamp()*1000)] = signal
                     for i in range(len(timestamps)):
                         if data[i] != signal:
                             signal = data[i]
