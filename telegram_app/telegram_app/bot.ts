@@ -22,41 +22,24 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
         ],
         resize_keyboard: true
     };
-    const helpMessage = `
-        🤖 *Bienvenido al Bot de MonoTrading* 📈
+    const helpMessage = 
+        `🤖 *Bienvenido al Bot de MonoTrading* 📈` +
+        `Este bot te permite recibir señales de compra/venta basadas en el análisis del mercado con un marco de tiempo _diario_.` +
+        `🛠️ *Funciones Principales:*` +
+        `1. *📊 Solicitar Estrategia de Ticker* ` +
+        `Analiza un _ticker_ y obtén una estrategia recomendada. También puedes suscribirte para recibir actualizaciones automáticas.` +
+        `2. *📋 Lista de Suscripciones*` +
+        `Administra tus suscripciones activas a señales de diferentes _tickers_ y anula la suscripción cuando lo desees.` +
+        `_Recuerda que estas señales no constituye una recomendación de inversión y es importante realizar tu propio análisis._` +
+        `🔍 Para un análisis detallado, abre el gráfico del _ticker_ para ver el indicador en tiempo real.`;
 
-        Este bot te permite recibir señales de compra/venta basadas en el análisis del mercado con un marco de tiempo _diario_.
-
-        ---
-
-        🛠️ **Funciones Principales:**
-        1. **📊 Solicitar Estrategia de Ticker**  
-        Analiza un _ticker_ y obtén una estrategia recomendada. También puedes suscribirte para recibir actualizaciones automáticas.
-
-        2. **📋 Lista de Suscripciones**  
-        Administra tus suscripciones activas a señales de diferentes _tickers_ y anula la suscripción cuando lo desees.
-
-        ---
-
-        📖 **Interpretando las Señales:**
-        - 📈 *Señal de Compra*: Indica una posible tendencia al alza.
-        - 📉 *Señal de Venta*: Señala una posible tendencia a la baja.
-        
-        _Recuerda que estas señales son solo una guía, y es importante realizar tu propio análisis._
-
-        🔍 Para un análisis detallado, abre el _ticker_ en la aplicación web para ver gráficos en tiempo real de las señales de compra/venta.
-
-        📅 **Nota**: Todas las estrategias están basadas en datos diarios.
-            
-        ¡Esperamos que este bot te sea útil en tu camino financiero! 🤑💹
-    `;
     bot.start((ctx) => {
         console.log(`El usuario inició el bot: ${ctx.from.id}`);
-        return ctx.reply(`¡Bienvenido! ${helpMessage} Elige una opción:`, {parse_mode: "Markdown", reply_markup: menu});    
+        return ctx.reply(helpMessage+`Elige una opción:`, {parse_mode: "Markdown", reply_markup: menu});    
     });
 
     bot.action('MAIN_MENU', (ctx) => {
-        return ctx.reply('Elige una opción:', {reply_markup: menu});    
+        return ctx.reply('*MENU PRINCIPAL*\nElige una opción:', {reply_markup: menu});    
     });
 
     bot.action('CHECK_TICKER', (ctx) => {
