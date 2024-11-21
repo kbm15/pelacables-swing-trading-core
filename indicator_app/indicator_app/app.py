@@ -91,13 +91,16 @@ class IndicatorWorker:
                     if len(data) == 0:                        
                         timestamps = ts.data.index[-1].tolist()
                         data = [0]                        
+                    buy_signals = False
                     signal = data[0]
                     result_data['signals'][str(timestamps[0].timestamp()*1000)] = signal
                     for i in range(len(timestamps)):
                         if data[i] != signal:
+                            if data[i] == 1 and not buy_signals:
+                                buy_signals = True
                             signal = data[i]
                             result_data['signals'][str(timestamps[i].timestamp()*1000)] = signal
-                    if len(result_data['signals']) == 1 and signal == 0:
+                    if not buy_signals:
                         result_data['total_return'] = -100.0
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
