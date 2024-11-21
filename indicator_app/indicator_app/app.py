@@ -88,8 +88,7 @@ class IndicatorWorker:
                 if len(timestamps) != len(data):
                     logging.error(f"Longitudes desiguales: timestamps ({len(timestamps)}) vs raw_signals ({len(data)})")
                 else:
-                    if len(data) == 0:
-                        result_data['total_return'] = -100.0
+                    if len(data) == 0:                        
                         timestamps = ts.data.index[-1].tolist()
                         data = [0]                        
                     signal = data[0]
@@ -98,6 +97,8 @@ class IndicatorWorker:
                         if data[i] != signal:
                             signal = data[i]
                             result_data['signals'][str(timestamps[i].timestamp()*1000)] = signal
+                    if len(result_data['signals']) == 1 & signal == 0:
+                        result_data['total_return'] = -100.0
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
 

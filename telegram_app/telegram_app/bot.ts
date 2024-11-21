@@ -39,7 +39,7 @@ async function registerBotActions(bot: Telegraf, channel: Channel) {
     });
 
     bot.action('MAIN_MENU', (ctx) => {
-        return ctx.reply('*MENU PRINCIPAL*\nElige una opción:', {reply_markup: menu});    
+        return ctx.reply('*MENU PRINCIPAL*\nElige una opción:', {parse_mode: "Markdown", reply_markup: menu});    
     });
 
     bot.action('CHECK_TICKER', (ctx) => {
