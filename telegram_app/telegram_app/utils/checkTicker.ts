@@ -39,7 +39,7 @@ export async function findTicker(ticker: string): Promise<Record<string, {longna
 
 export async function checkTicker(ticker: string): Promise<boolean> {
     console.log(`Checking ticker ${ticker}`);
-    const exchangeWhitelist = ['CCC','NMS','NYQ','PCX','NGM','MCE','PAR','MIL','GER','BRU','AMS','LSE','HKG','SHH','JPX','ASX']
+    const exchangeWhitelist = ['CCC','NMS','NYQ','NCM','PCX','NGM','MCE','PAR','MIL','GER','BRU','AMS','LSE','HKG','SHH','JPX','ASX']
     let result;
     try {
         yahooFinance.setGlobalConfig({ validation: { logErrors: false} });
@@ -82,6 +82,7 @@ export async function getTickerExchange(ticker: string): Promise<string> {
         "NMS": "NASDAQ",
         "NYQ": "NYSE",
         "PCX": "AMEX",
+        "NCM": "NASDAQ",
         "NGM": "NASDAQ",
         "MCE": "BME",
         "PAR": "EURONEXT",
