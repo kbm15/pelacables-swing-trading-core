@@ -68,7 +68,7 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
 
             //responseMessage += `📝 **Estrategia:** *${strategy}*\n`;
             responseMessage += `💹 *Retorno en 180d:* ${total_return !== undefined && total_return !== null ? `${total_return.toFixed(2)}%` : 'No disponible'}\n\n`;
-            responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}}\n`;
+            responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}\n`;
             
 
             
