@@ -92,16 +92,16 @@ class IndicatorWorker:
 
             # Run indicator
             else:
-                bs = indicator.calculate(ts.data)
-                
-                signal = bs.iloc[-1]
-                result_data['signals'] = {str(ts.data.index[-1].timestamp()*1000):bs.iloc[-1]}
-                if signal == 0:
-                    for i in range(len(bs)):
-                        if bs.iloc[-i] != signal: 
-                            signal = bs.iloc[-i]
-                            result_data['signals'].update({str(ts.data.index[-i].timestamp()*1000):signal})
+                bs = indicator.calculate(ts.data)                
+                signal = 0
+                result_data['signals']={str(ts.data.index[-1].timestamp()*1000):bs.iloc[-i]}
+                for i in range(1,len(bs)):
+                    if bs.iloc[-i] != signal: 
+                        if bs.iloc[-i] == 0:
+                            result_data['signals'].update({str(ts.data.index[-i+1].timestamp()*1000):signal})
                             break
+                        signal = bs.iloc[-i]
+                        
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
             logging.info(f"Result data: {result_data}")
             self.channel.basic_publish(
