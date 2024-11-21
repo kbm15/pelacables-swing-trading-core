@@ -97,7 +97,7 @@ class IndicatorWorker:
                         if data[i] != signal:
                             signal = data[i]
                             result_data['signals'][str(timestamps[i].timestamp()*1000)] = signal
-                    if len(result_data['signals']) == 1 & signal == 0:
+                    if len(result_data['signals']) == 1 and signal == 0:
                         result_data['total_return'] = -100.0
                 
                 logging.debug(f'Finished backtest {task_data['strategy']} on {task_data['ticker']}')
