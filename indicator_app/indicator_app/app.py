@@ -93,14 +93,12 @@ class IndicatorWorker:
             # Run indicator
             else:
                 bs = indicator.calculate(ts.data)                
-                signal = 0
-                result_data['signals']={str(ts.data.index[-1].timestamp()*1000):bs.iloc[-1]}
+                signal = bs.iloc[-1]
+                result_data['signals']={str(ts.data.index[-1].timestamp()*1000):signal}
                 for i in range(1,len(bs)):
                     if bs.iloc[-i] != signal: 
-                        if bs.iloc[-i] == 0:
-                            result_data['signals'].update({str(ts.data.index[-i+1].timestamp()*1000):signal})
-                            break
-                        signal = bs.iloc[-i]
+                        result_data['signals'].update({str(ts.data.index[-i+1].timestamp()*1000):bs.iloc[-i+1]})
+                        break
                         
                 logging.debug(f'Finished indicator {task_data["strategy"]} on {task_data["ticker"]}')
             logging.info(f"Result data: {result_data}")
