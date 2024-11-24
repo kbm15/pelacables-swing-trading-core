@@ -90,9 +90,9 @@ class IndicatorWorker:
                 else:
                     if len(data) == 0:                        
                         timestamps = ts.data.index[-1].tolist()
-                        data = [0]                        
-                    buy_signals = False
+                        data = [0]         
                     signal = data[0]
+                    buy_signals = signal == 1
                     result_data['signals'][str(timestamps[0].timestamp()*1000)] = signal
                     for i in range(len(timestamps)):
                         if data[i] != signal:

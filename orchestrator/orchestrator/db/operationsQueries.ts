@@ -44,6 +44,8 @@ export async function recordLastOperation(operation: Operation, client: Postgres
         operation.strategy,
         operation.timestamp,
     ];
+
+    console.log(`Recording last operation for ${operation.ticker}: ${operation.operation} ${operation.indicator} ${operation.strategy} ${operation.timestamp}`);
     
     await client.query(query, values);
     if(operation.operation === 'Buy' || operation.operation === 'Sell'){
