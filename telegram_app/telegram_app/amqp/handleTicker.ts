@@ -60,9 +60,9 @@ export async function consumeTickerResponses(channel: Channel, bot: Telegraf) {
                 console.log(`No signals for ticker: ${ticker}, chatId: ${chatId}`);
             } else {
                 const signal = Object.entries(signals)[0][1];
-                const signalString = signal === 1 ? 'Compra' : signal === -1 ? 'Venta' : 'Mantener';
+                const signalString = signal === 1 ? 'Alcista' : signal === -1 ? 'Bajista' : 'Neutral';
                 const date = new Date(Number(Object.entries(signals)[0][0]));
-                responseMessage += `🔔 Señal de ${signalString} el ${date.toLocaleDateString()}\n`;
+                responseMessage += `🔔 Señal ${signalString} el ${date.toLocaleDateString()}\n`;
             }
 
             // Enviar mensaje al chat apropiado (usuario o grupo)

@@ -42,9 +42,9 @@ export async function consumeNotifications(channel: Channel, bot: Telegraf) {
 
                 if (recentSignals.length > 0) {
                     const [timestamp, value] = recentSignals[0];
-                    const signalString = value === 1 ? 'Compra' : 'Venta';
+                    const signalString = value === 1 ? 'Alcista' : 'Bajista';
                     const signalDate = new Date(Number(timestamp));
-                    const message = `📢 *${ticker}* señal de ${signalString} a las ${signalDate.toTimeString()}!`;
+                    const message = `📢 *${ticker}* señal ${signalString} a las ${signalDate.getHours()}:${signalDate.getMinutes()}!`;
                     bot.telegram.sendMessage(chatId, message, { parse_mode: 'Markdown' });
                     console.log(`Notification sent to userId: ${chatId} for ticker: ${ticker} with signal: ${signalString}`);
                 }
