@@ -115,6 +115,8 @@ export async function handleRequest(channel: Channel, client: PostgresClient) {
                     pushRequest(request);
                     
                 } else {
+                    const request: Request = { ticker, indicator: 'None', strategy: 'None', flag: source,  chatId: chatId !== null ? chatId : userId };
+                    pushRequest(request);
                     console.log(`Already aggregating responses for ${ticker}, skipping request.`);
                 }
             } else {
