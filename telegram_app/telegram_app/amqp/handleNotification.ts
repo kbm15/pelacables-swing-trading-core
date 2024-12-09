@@ -44,7 +44,9 @@ export async function consumeNotifications(channel: Channel, bot: Telegraf) {
                     const [timestamp, value] = recentSignals[0];
                     const signalString = value === 1 ? 'Alcista' : 'Bajista';
                     const signalDate = new Date(Number(timestamp));
-                    const message = `📢 *${ticker}* señal ${signalString} a las ${signalDate.getHours()}:${signalDate.getMinutes()}!`;
+                    const signalDateNY = signalDate.toLocaleString('en-US', { timeZone: 'America/New_York' });
+                    const signalHour = Number(signalDateNY.split(' ')[1].split(':')[0]);
+                    const message = `📢 *${ticker}* señal ${signalString}${signalHour < 9 ? ' generada en horario nocturno' : ` a las ${(`0${signalDate.getHours()}`).slice(-2)}:${(`0${signalDate.getMinutes()}`).slice(-2)}`}`;
                     bot.telegram.sendMessage(chatId, message, { parse_mode: 'Markdown' });
                     console.log(`Notification sent to userId: ${chatId} for ticker: ${ticker} with signal: ${signalString}`);
                 }
