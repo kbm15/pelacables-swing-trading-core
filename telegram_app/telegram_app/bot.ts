@@ -137,14 +137,20 @@ async function main() {
     await registerBotActions(bot, channel);
     consumeTickerResponses(channel, bot);
     consumeNotifications(channel, bot);
-    bot.launch().catch(console.error);
-    process.once('SIGINT', () => {
-        console.log("Bot is stopping...");
-        bot.stop('SIGINT');
-    });
-    process.once('SIGTERM', () => {
-        console.log("Bot is stopping...");
-        bot.stop('SIGTERM');
+    bot.launch().then(() => {
+        process.once('SIGINT', () => {
+            console.log("Bot is stopping...");
+            bot.stop('SIGINT');
+            process.exit(1);
+        });
+        process.once('SIGTERM', () => {
+            console.log("Bot is stopping...");
+            bot.stop('SIGTERM');
+            process.exit(1);
+        });
+    }).catch(err => {
+        console.error(err);
+        process.exit(1);
     });
 }
 
