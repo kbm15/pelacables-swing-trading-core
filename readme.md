@@ -1,32 +1,85 @@
 # TradingCore Infrastructure
-![TradingCore Architecture](TradingCore 24Q4.png)
 
-**Description:**
-This diagram illustrates the infrastructure of the TradingCore system
-## Screener Module
-The screener module is responsible for identifying potential investment opportunities based on value investing principles. This involves analyzing companies' fundamentals to find stocks that are undervalued relative to their intrinsic worth.
+The **TradingCore Infrastructure** is a modular system designed to streamline and automate trading workflows. It integrates various components, including indicators, orchestration, real-time monitoring, and communication, to provide a comprehensive trading solution. The system leverages the `tradingcore` library for managing financial data, implementing indicators, and performing backtesting.
 
-Value investing screening typically considers factors such as:
+## Infrastructure Diagram
 
-Price-to-Earnings (P/E) Ratio: A low P/E ratio suggests the stock may be undervalued.
-Price-to-Book (P/B) Ratio: A low P/B ratio indicates the stock's market price is lower than its book value.
-Dividend Yield: A high dividend yield suggests the company is returning a significant portion of its profits to shareholders.
-Debt-to-Equity Ratio: A low debt-to-equity ratio indicates the company has a strong financial position.
-Return on Equity (ROE): A high ROE indicates the company is efficiently using its shareholders' equity to generate profits.
-Once the screener identifies stocks that meet these criteria, it sends them to the backtesting module.
+![TradingCore Infrastructure](TradingCore_24Q4.png)
 
-## Backtesting Module
-The backtesting module evaluates the profitability of potential trades using technical investing techniques, such as the Ichimoku Cloud. This involves simulating past trades to assess how the chosen strategy would have performed under different market conditions.
+The diagram above illustrates the architecture of the **TradingCore Infrastructure**, showcasing the interaction between its components, including the **Indicator App**, **Orchestrator**, **Telegram App**, and the **TradingCore Library**. This visual representation provides a clear understanding of how the system operates as a cohesive unit to support trading workflows.
 
-Ichimoku Cloud is a technical indicator that provides signals for potential support and resistance levels. It consists of five lines: the Tenkan-sen, Kijun-sen, Senkou Span A, Senkou Span B, and Chikou Span.
+---
 
-By analyzing the interactions between these lines, traders can identify potential entry and exit points for trades.
+## Components
 
-## Trade Configuration and Real-time Module
-If the backtesting module determines that a trade is profitable, it saves the trade configuration (ticker, strategy) to a database and adds the ticker to the "to buy" list of the real-time module.
+### 1. **Indicator App**
+The **Indicator App** is responsible for calculating and managing technical indicators used in trading strategies. It supports a wide range of indicators, including:
 
-The real-time module monitors the market and executes trades based on the "to buy" list. When a stock on the list meets the specified entry conditions (e.g., price reaches a support level), the module will place a buy order.
+- **Ichimoku Cloud**: Provides support/resistance levels and trend signals.
+- **Moving Averages**: Tracks price trends over time.
+- **Parabolic SAR**: Identifies potential reversals in market trends.
 
-The stock remains on the "to buy" list until it is removed by the screener (e.g., if the stock no longer meets the value investing criteria). Once the stock is removed, the real-time module can close the position if necessary.
+This app integrates with the `tradingcore` library to calculate indicators and generate signals for backtesting and real-time trading.
 
-Note: The specific implementation of these modules and the exact criteria used for screening and backtesting may vary depending on the trading strategy and risk tolerance of the investor.
+![Indicator Visualization](indicator.png)
+
+This visualization provides insights into how indicators are calculated and their impact on trading decisions, showcasing the integration of the **TradingCore Library** with the **Indicator App**.
+
+---
+
+### 2. **Orchestrator**
+The **Orchestrator** acts as the central hub for coordinating the various modules of the TradingCore system. Its responsibilities include:
+
+- Managing workflows between the **Indicator App**, **Screener Module**, and **Real-time Module**.
+- Scheduling backtesting tasks and real-time monitoring.
+- Storing and retrieving trade configurations from the database.
+
+The orchestrator ensures seamless communication between components and maintains the overall system's efficiency.
+
+![Orchestrator Workflow](orchestrator.png)
+
+The log above illustrates how the **Orchestrator** communicates with the **Indicator App** and other modules via RabbitMQ. It showcases the flow of messages, including indicator replies.
+
+---
+
+### 3. **Telegram App**
+The **Telegram App** provides real-time notifications and communication for trading activities. It allows users to:
+
+- Receive alerts for buy/sell signals generated by the **Indicator App**.
+- Monitor the status of trades executed by the **Real-time Module**.
+- Interact with the system to query trade configurations or request updates.
+
+This app ensures that traders stay informed and can make timely decisions.
+
+![Telegram View](telegram_view.png)
+
+The screenshot above demonstrates the **Telegram App** in action, showcasing a conversation with the bot. It includes real-time updates on trading signals, executed trades, and user interactions.
+
+---
+
+### 4. **TradingCore Library**
+The **TradingCore Library** is the backbone of the infrastructure, offering core functionalities for:
+
+- **Data Management**: Handles timeseries financial data using `pandas` and `yfinance`.
+- **Indicators**: Implements technical indicators like Ichimoku Cloud, Moving Averages, and more.
+- **Backtesting**: Simulates historical trades to evaluate the profitability of strategies.
+- **Integration**: Provides APIs for seamless integration with other modules.
+
+#### Example Usage:
+```python
+from tradingcore.data.timeseries import TimeSeriesData
+from tradingcore.indicators.moving_average import MovingAverageIndicator
+from tradingcore.backtesting.backtester import Backtester
+
+# Initialize timeseries data
+ts_data = TimeSeriesData('AAPL')
+
+# Initialize indicator
+ma_indicator = MovingAverageIndicator(window=20)
+
+# Initialize backtester
+backtester = Backtester(ts_data, ma_indicator)
+
+# Run backtest
+results = backtester.run_backtest()
+print(results)
